@@ -232,9 +232,6 @@ exports.handler = function(context, event, callback) {
 
         phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== 'No one on-call');
 
-        const victorOpsData = {phoneNumbers: [{phone: '+1 303-638-4326', user: 'Bones'}, {phone: '+1 720-308-6554', user: 'Hoshi Sato'}]}; //Dev override, remove to go live
-
-        phoneNumbers = victorOpsData.phoneNumbers; //Dev override, remove to go live
         const newPayload = {phoneNumbers, teamsArray};
         const payloadString = JSON.stringify(newPayload);
 
@@ -288,7 +285,7 @@ exports.handler = function(context, event, callback) {
               const schedule = body.schedule;
               const onCallArray = [];
 
-              schedule.forEach((currentValue, i, array) => { // Need to add logic for overrides
+              schedule.forEach((currentValue, i, array) => {
                 currentValue.rolls.forEach((roll, j, array) => {
 
                   if (moment().isBetween(roll.change, roll.until)) {
@@ -412,7 +409,7 @@ exports.handler = function(context, event, callback) {
       const payloadString = JSON.stringify(newPayload);
 
       if (sayGoodbye === 'yes') {
-        twiml.say({voice}, 'Twilio will try to transcribe your message and create an incident in Victor Ops. Goodbye.'); //No-noise = no incident; noise-but-not-transcribable = incident, twilio unable to transcribe; transcribed = incendent with transcription;
+        twiml.say({voice}, 'Twilio will try to transcribe your message and create an incident in Victor Ops. Goodbye.');
       } else {
         let message = `Please leave a message for the ${teamsArray[0].name} team and hang up when you are finished.`
 
