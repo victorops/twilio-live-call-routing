@@ -282,14 +282,30 @@ exports.handler = function(context, event, callback) {
             }).then(response => {
 
               const body = JSON.parse(response.body);
-              const schedule = body.schedule;
+              const {overrides, schedule} = body;
               const onCallArray = [];
 
               schedule.forEach((currentValue, i, array) => {
                 currentValue.rolls.forEach((roll, j, array) => {
 
                   if (moment().isBetween(roll.change, roll.until)) {
-                    onCallArray.push(roll.onCall);
+                    let overrideExists = false;
+                    let user;
+                    overrides.forEach((override, k, array) => {
+
+                      if (override.origOnCall === roll.onCall && moment().isBetween(override.start, override.end)) {
+                        overrideExists = true;
+                        user = override.overrideOnCall;
+                      }
+
+                    });
+
+                    if (overrideExists === false) {
+                      onCallArray.push(roll.onCall);
+                    } else {
+                      onCallArray.push(user);
+                    }
+
                   }
                 
                 });
@@ -315,7 +331,7 @@ exports.handler = function(context, event, callback) {
 
                 }).catch(err => {
 
-                  console.log(err);
+                  console.log('err', err);
                   return reject(err);
 
                 });
@@ -356,7 +372,7 @@ exports.handler = function(context, event, callback) {
         if (phoneNumbers.length === 1) {
           phoneNumber = phoneNumbers[0];
           detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
-          const newPayload = {detailedLog, teamsArray};
+          const newPayload = {detailedLog, phoneNumbers, teamsArray};
           const payloadString = JSON.stringify(newPayload);
           twiml.dial(
             {
