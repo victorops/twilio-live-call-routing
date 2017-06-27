@@ -16,6 +16,13 @@ exports.handler = function(context, event, callback) {
 
   let twiml = new Twilio.twiml.VoiceResponse();
 
+if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === undefined || TWILIO_URL === undefined) {
+  twiml.say({voice}, `There is a missing configuration value. Please contact your administrator to fix the problem.`);
+
+  callback(null, twiml);
+  return;
+}
+
   main().then(result => callback(null, result)).catch(err => console.log(err));
 
   function main() {
