@@ -125,6 +125,10 @@ exports.handler = function(context, event, callback) {
                 menuPrompt += ` ${i + 1} for ${team.name}.`;
               });
 
+              if (NUMBER_OF_MENUS === '1') {
+                menuPrompt = `Welcome to Victor Ops Live Call Routing. ${menuPrompt}`;
+              }
+
               const newPayload = {teamsArray};
               const payloadString = JSON.stringify(newPayload);
               twiml.gather({
@@ -235,10 +239,16 @@ exports.handler = function(context, event, callback) {
         const newPayload = {phoneNumbers, teamsArray};
         const payloadString = JSON.stringify(newPayload);
 
+        let message = `We are connecting you to the representative on-call for the ${teamsArray[0].name} team - Please hold`;
+
+        if (NUMBER_OF_MENUS === '0') {
+          message = `Welcome to Victor Ops Live Call Routing. ${message}`;
+        }
+
         if (phoneNumbers.length === 0) {
           twiml.redirect(`/victorops?${qs.stringify({payloadString, runFunction: 'leaveAMessage'})}`);
         } else {
-          twiml.say({voice}, `We are connecting you to the representative on-call for the ${teamsArray[0].name} team - Please hold`);
+          twiml.say({voice}, message);
           twiml.redirect(`/victorops?${qs.stringify({payloadString, runFunction: 'call', firstCall: 'true', callerId})}`);
         }
 
@@ -327,7 +337,12 @@ exports.handler = function(context, event, callback) {
                 }).then(response => {
 
                   const body = JSON.parse(response.body);
-                  return resolve({phone: body.contactMethods[0].value, user: onCallArray[randomIndex]});
+
+                  if (body.contactMethods.length === 0) {
+                    return resolve('No one on-call');
+                  } else {
+                    return resolve({phone: body.contactMethods[0].value, user: onCallArray[randomIndex]});
+                  }
 
                 }).catch(err => {
 
