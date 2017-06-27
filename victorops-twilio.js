@@ -384,7 +384,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
       let phoneNumber;
 
       if (DialCallStatus === 'completed') {
-        twiml.say({voice}, 'The other party has disconnected. Goodbye.')
+        twiml.say({voice}, 'The other party has disconnected. Goodbye.');
       } else {
 
         if (firstCall !== 'true') {
@@ -441,12 +441,14 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
 
     return new Promise((resolve, reject) => {
 
-      const {goToVM, sayGoodbye} = event;
+      const {DialCallStatus, goToVM, sayGoodbye} = event;
       const {detailedLog, teamsArray} = payload;
       const newPayload = {detailedLog, teamsArray};
       const payloadString = JSON.stringify(newPayload);
 
-      if (sayGoodbye === 'yes') {
+      if (DialCallStatus === 'completed') {
+        twiml.say({voice}, 'The other party has disconnected. Goodbye.');
+      } else if (sayGoodbye === 'yes') {
         twiml.say({voice}, 'Twilio will try to transcribe your message and create an incident in Victor Ops. Goodbye.');
       } else {
         let message = `Please leave a message for the ${teamsArray[0].name} team and hang up when you are finished.`
