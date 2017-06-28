@@ -1,0 +1,26 @@
+{
+  "name": "twilio-live-call-routing",
+  "version": "1.0.0",
+  "description": "Twilio live call routing",
+  "main": "victorops-twilio.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node_modules/.bin/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/victorops/twilio-live-call-routing.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/victorops/twilio-live-call-routing/issues"
+  },
+  "homepage": "https://github.com/victorops/twilio-live-call-routing#readme",
+  "dependencies": {
+    "chai": "^4.0.2",
+    "mocha": "^3.4.2"
+  }
+}

@@ -2,8 +2,29 @@ const qs = require('qs');
 const got = require('got');
 const moment = require('moment');
 
+function callOrMessage(voice, twiml, callerId) {
 
-exports.handler = function(context, event, callback) {
+  return new Promise((resolve, reject) => {
+
+    twiml.gather({
+      input: 'dtmf',
+      timeout: 10,
+      action: `/victorops?${qs.stringify({runFunction: 'teamsMenu', callerId})}`,
+      numDigits: 1
+    }).say({voice}, 'Welcome to Victor Ops Live Call Routing. Please press 1 to reach an on-call representative or press 2 to leave a message. Press zero to repeat this menu.');
+    twiml.say({voice}, 'We did not receive a response. Goodbye.');
+    
+    resolve(twiml);
+
+  });
+
+}
+
+
+
+module.exports = {callOrMessage, handler};
+
+function handler(context, event, callback) {
 
   const {API_ID, API_KEY, REST_ENDPOINT_API_KEY, TWILIO_URL, NUMBER_OF_MENUS} = context;
   const {payloadString, runFunction, To} = event;
@@ -34,7 +55,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
           entryFunction = teamsMenu;
           break;
         default:
-          entryFunction = callOrMessage;
+          entryFunction = () => callOrMessage(voice, twiml, callerId);
           break;
       }
     }
@@ -62,25 +83,6 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
         return entryFunction();
         break;
     }
-
-  }
-
-
-  function callOrMessage() {
-
-    return new Promise((resolve, reject) => {
-
-      twiml.gather({
-        input: 'dtmf',
-        timeout: 10,
-        action: `/victorops?${qs.stringify({runFunction: 'teamsMenu', callerId})}`,
-        numDigits: 1
-      }).say({voice}, 'Welcome to Victor Ops Live Call Routing. Please press 1 to reach an on-call representative or press 2 to leave a message. Press zero to repeat this menu.');
-      twiml.say({voice}, 'We did not receive a response. Goodbye.');
-      
-      resolve(twiml);
-
-    });
 
   }
 
