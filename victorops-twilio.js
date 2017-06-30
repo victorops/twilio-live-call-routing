@@ -527,11 +527,11 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
       if (TranscriptionText !== undefined && TranscriptionText !== '') {
         alert.message_type = 'critical';
         alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
-        alert.state_message = `Transcribed message from Twilio:\n${TranscriptionText}${detailedLog}`;
+        alert.state_message = `Transcribed message from Twilio:\n${TranscriptionText}${detailedLog || ''}`;
       } else if (TranscriptionText !== undefined) {
         alert.message_type = 'critical';
         alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
-        alert.state_message = `Twilio was unable to transcribe message.${detailedLog}`;
+        alert.state_message = `Twilio was unable to transcribe message.${detailedLog || ''}`;
       } else if (callAnsweredByHuman === 'yes') {
         alert.message_type = 'acknowledgement';
         alert.state_message = `${phoneNumber.user} answered a call from ${realCallerId}.${detailedLog}`;
