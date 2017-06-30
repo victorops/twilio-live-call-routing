@@ -52,6 +52,9 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
       case 'call':
         return call();
         break;
+      case 'isHuman':
+        return isHuman();
+        break;
       case 'leaveAMessage':
         return leaveAMessage();
         break;
@@ -379,7 +382,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
     return new Promise((resolve, reject) => {
 
       const {DialCallStatus, firstCall, From, goToVM} = event;
-      let {detailedLog} = payload;
+      let {detailedLog, realCallerId} = payload;
       const {phoneNumbers, teamsArray} = payload;
       let phoneNumber;
 
@@ -389,12 +392,14 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
 
         if (firstCall !== 'true') {
           twiml.say({voice}, 'Trying next on-call representative');
+        } else {
+          realCallerId = From;
         }
 
         if (phoneNumbers.length === 1) {
           phoneNumber = phoneNumbers[0];
           detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
-          const newPayload = {detailedLog, phoneNumbers, teamsArray};
+          const newPayload = {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray};
           const payloadString = JSON.stringify(newPayload);
           twiml.dial(
             {
@@ -403,8 +408,9 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
             }
           ).number(
             {
+              url: `${TWILIO_URL}/victorops?${qs.stringify({payloadString, runFunction: 'isHuman', callerId})}`,
               statusCallback: `${TWILIO_URL}/victorops?${qs.stringify({payloadString, runFunction: 'postToVictorOps', goToVM, callerId})}`,
-              statusCallbackEvent: 'answered completed'
+              statusCallbackEvent: 'completed'
             },
             phoneNumber.phone
           );
@@ -412,7 +418,8 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
           phoneNumber = phoneNumbers[0];
           phoneNumbers.shift();
           detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
-          const newPayload = {detailedLog, phoneNumbers, teamsArray};
+
+          const newPayload = {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray};
           const payloadString = JSON.stringify(newPayload);
           twiml.dial(
             {
@@ -421,13 +428,44 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
             }
           ).number(
             {
+              url: `${TWILIO_URL}/victorops?${qs.stringify({payloadString, runFunction: 'isHuman', callerId})}`,
               statusCallback: `${TWILIO_URL}/victorops?${qs.stringify({payloadString, runFunction: 'postToVictorOps', callerId})}`,
-              statusCallbackEvent: 'answered completed'
+              statusCallbackEvent: 'completed'
             },
             phoneNumber.phone
           );
         }
 
+      }
+
+      resolve(twiml);
+
+    });
+
+  }
+
+
+  function isHuman() {
+
+    return new Promise((resolve, reject) => {
+
+      const {Digits} = event;
+      const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray} = payload;
+      const newPayload = {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray};
+      const payloadString = JSON.stringify(newPayload);
+
+      if (Digits === undefined) {
+        twiml.gather({
+          input: 'dtmf',
+          timeout: 5,
+          action: `/victorops?${qs.stringify({payloadString, runFunction: 'isHuman', callAnsweredByHuman: 'yes'})}`,
+          numDigits: 1
+        }).say({voice}, 'This is Victor Ops Live Call Routing. Press any key to connect.');
+        twiml.say({voice}, 'We did not receive a response. Goodbye.');
+        twiml.hangup();
+      } else {
+        twiml.say({voice}, 'You are now connected.');
+        twiml.redirect(`${TWILIO_URL}/victorops?${qs.stringify({payloadString, runFunction: 'postToVictorOps', callAnsweredByHuman: 'yes'})}`);
       }
 
       resolve(twiml);
@@ -477,8 +515,8 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
 
     return new Promise((resolve, reject) => {
 
-      const {detailedLog, phoneNumbers, teamsArray} = payload;
-      const {CallSid, CallStatus, CallDuration, From, goToVM, TranscriptionStatus, TranscriptionText} = event;
+      const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray} = payload;
+      const {callAnsweredByHuman, CallSid, CallStatus, CallDuration, From, goToVM, TranscriptionStatus, TranscriptionText} = event;
 
       const alert = {
         monitoring_tool: 'Twilio',
@@ -494,17 +532,17 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
         alert.message_type = 'critical';
         alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
         alert.state_message = `Twilio was unable to transcribe message.${detailedLog}`;
-      } else if (CallStatus === 'in-progress' && TranscriptionStatus !== 'failed') {
+      } else if (callAnsweredByHuman === 'yes') {
         alert.message_type = 'acknowledgement';
-        alert.state_message = `${phoneNumbers[0].user} answered a call from ${From}.${detailedLog}`;
+        alert.state_message = `${phoneNumber.user} answered a call from ${realCallerId}.${detailedLog}`;
         alert.ack_author = phoneNumbers[0].user;
       } else if (CallStatus === 'completed' && TranscriptionStatus !== 'failed') {
         alert.message_type = 'recovery';
-        alert.state_message = `${phoneNumbers[0].user} answered a call from ${From} that lasted ${CallDuration} seconds.${detailedLog}`;
+        alert.state_message = `${phoneNumber.user} answered a call from ${realCallerId} that lasted ${CallDuration} seconds.${detailedLog}`;
         alert.ack_author = phoneNumbers[0].user;
       } else {
         
-        resolve('OK');
+        resolve('');
         
         return;
       }
@@ -517,13 +555,13 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
         }
       ).then(response => {
 
-        resolve('OK');
+        resolve('');
 
       }).catch(err => {
 
         console.log(err);
         
-        resolve('OK');
+        resolve('');
 
       });
 
