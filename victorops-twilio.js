@@ -8,7 +8,9 @@ exports.handler = function(context, event, callback) {
   const {API_ID, API_KEY, REST_ENDPOINT_API_KEY, TWILIO_URL, NUMBER_OF_MENUS} = context;
   const {payloadString, runFunction, To} = event;
   const payload = payloadString === undefined ? undefined : JSON.parse(payloadString);
-  let {voice} = context;
+  let {ALERT_HOST, API_HOST, voice} = context;
+  ALERT_HOST = ALERT_HOST === undefined ? 'alert.victorops.com' : ALERT_HOST;
+  API_HOST = API_HOST === undefined ? 'api.victorops.com' : API_HOST;
   voice = (voice === 'alice' || voice === 'man') ? voice : 'woman';
   let {callerId} = event;
   callerId = callerId === undefined ? To : callerId;
@@ -100,7 +102,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
         resolve(twiml);
       } else {
 
-        got('https://api.victorops.com/api-public/v1/team',
+        got(`https://${API_HOST}/api-public/v1/team`,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -276,7 +278,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
 
       function createEscPolicies(teamSlug) {
 
-        const onCallUrl = `https://api.victorops.com/api-public/v1/team/${teamSlug}/oncall/schedule?step=`;
+        const onCallUrl = `https://${API_HOST}/api-public/v1/team/${teamSlug}/oncall/schedule?step=`;
         const arrayOfUrls = [];
 
         for (var i = 0; i <= 2; i++) {
@@ -337,7 +339,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
 
               const randomIndex = Math.floor(Math.random() * onCallArray.length);
 
-              got(`https://api.victorops.com/api-public/v1/user/${onCallArray[randomIndex]}/contact-methods/phones`,
+              got(`https://${API_HOST}/api-public/v1/user/${onCallArray[randomIndex]}/contact-methods/phones`,
                 {
                   headers: {
                     'Content-Type': 'application/json',
@@ -547,7 +549,7 @@ if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === u
         return;
       }
 
-      got.post(`https://alert.victorops.com/integrations/generic/20131114/alert/${REST_ENDPOINT_API_KEY}/${teamsArray[0].slug}`,
+      got.post(`https://${ALERT_HOST}/integrations/generic/20131114/alert/${REST_ENDPOINT_API_KEY}/${teamsArray[0].slug}`,
         {
           json: true,
           headers: {'Content-Type': 'application/json'},
