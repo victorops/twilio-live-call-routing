@@ -1,3 +1,8 @@
+//==========================================================================
+// Copyright 2017 VictorOps, Inc.
+// https://github.com/victorops/twilio-live-call-routing/blob/master/LICENSE
+//==========================================================================
+
 const qs = require('qs');
 const got = require('got');
 const moment = require('moment');
