@@ -15,7 +15,7 @@ describe('callOrMessage()', function() {
   it(`should be true`, function() {
     assert.equal(typeof app.callOrMessage === 'function', true, typeof app.callOrMessage);
   });
-  it(`should be return a promise`, function() {
+  it(`should return a promise`, function() {
     assert.equal(p instanceof Promise, true, 'lksdf');
   });
   it(`should have it's returned promise resolved`, function(done) {
