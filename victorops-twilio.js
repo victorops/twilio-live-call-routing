@@ -69,7 +69,7 @@ function main(twiml, context, event, payload) {
       return call(twiml, context, event, payload);
       break;
     case 'isHuman':
-      return isHuman(twiml, event, payload);
+      return isHuman(twiml, context, event, payload);
       break;
     case 'leaveAMessage':
       return leaveAMessage(twiml, event, payload);
@@ -477,7 +477,7 @@ function call(twiml, context, event, payload) {
 }
 
 
-function isHuman(twiml, event, payload) {
+function isHuman(twiml, context, event, payload) {
 
   return new Promise((resolve, reject) => {
 
