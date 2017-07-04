@@ -87,7 +87,7 @@ describe('call()', function() {
 });
 
 describe('isHuman()', function() {
-  const p = app.isHuman(twiml, event, payload);
+  const p = app.isHuman(twiml, context, event, payload);
   it(`should be a function`, function() {
     assert.equal(typeof app.isHuman === 'function', true, typeof app.isHuman);
   });
