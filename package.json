@@ -19,7 +19,7 @@
     "url": "https://github.com/victorops/twilio-live-call-routing/issues"
   },
   "homepage": "https://github.com/victorops/twilio-live-call-routing#readme",
-  "dependencies": {
+  "devDependencies": {
     "chai": "^4.0.2",
     "mocha": "^3.4.2"
   }
