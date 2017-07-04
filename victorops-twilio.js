@@ -16,17 +16,17 @@ function handler(context, event, callback) {
   const {payloadString, To} = event;
   const payload = payloadString === undefined ? {} : JSON.parse(payloadString);
   const {runFunction} = payload;
-  let {ALERT_HOST, API_HOST, VOICE} = context;
+  let {ALERT_HOST, API_HOST, voice} = context;
   context.ALERT_HOST = ALERT_HOST === undefined ? 'alert.victorops.com' : ALERT_HOST;
   context.API_HOST = API_HOST === undefined ? 'api.victorops.com' : API_HOST;
-  payload.VOICE = (VOICE === 'alice' || VOICE === 'man') ? VOICE : 'woman';
+  payload.voice = (voice === 'alice' || voice === 'man') ? voice : 'woman';
   let {callerId} = payload;
   payload.callerId = callerId === undefined ? To : callerId;
 
   let twiml = new Twilio.twiml.VoiceResponse();
 
 if (API_ID === undefined || API_KEY === undefined || REST_ENDPOINT_API_KEY === undefined || TWILIO_URL === undefined) {
-  twiml.say({VOICE}, `There is a missing configuration value. Please contact your administrator to fix the problem.`);
+  twiml.say({voice}, `There is a missing configuration value. Please contact your administrator to fix the problem.`);
 
   callback(null, twiml);
   return;
@@ -89,7 +89,7 @@ function callOrMessage(twiml, payload) {
 
   return new Promise((resolve, reject) => {
 
-    const {callerId, VOICE} = payload;
+    const {callerId, voice} = payload;
 
     const newPayload = {callerId, runFunction: 'teamsMenu'};
     const payloadString = JSON.stringify(newPayload);
@@ -99,8 +99,8 @@ function callOrMessage(twiml, payload) {
       timeout: 10,
       action: `/victorops?${qs.stringify({payloadString})}`,
       numDigits: 1
-    }).say({VOICE}, 'Welcome to Victor Ops Live Call Routing. Please press 1 to reach an on-call representative or press 2 to leave a message. Press zero to repeat this menu.');
-    twiml.say({VOICE}, 'We did not receive a response. Goodbye.');
+    }).say({voice}, 'Welcome to Victor Ops Live Call Routing. Please press 1 to reach an on-call representative or press 2 to leave a message. Press zero to repeat this menu.');
+    twiml.say({voice}, 'We did not receive a response. Goodbye.');
     
     resolve(twiml);
 
@@ -115,7 +115,7 @@ function teamsMenu(twiml, context, event, payload) {
 
     const {API_HOST, API_ID, API_KEY, NUMBER_OF_MENUS} = context;
     const {Digits} = event;
-    const {callerId, VOICE} = payload;
+    const {callerId, voice} = payload;
     let {goToVM} = payload;
 
     if (Digits === '0') {
@@ -147,7 +147,7 @@ function teamsMenu(twiml, context, event, payload) {
           }
 
           if (teamsArray.length === 0) {
-            twiml.say({VOICE}, 'There was an error retrieving the list of teams for your organization. Goodbye.');
+            twiml.say({voice}, 'There was an error retrieving the list of teams for your organization. Goodbye.');
           } else if (teamsArray.length === 1 || NUMBER_OF_MENUS === '0') {
             teamsArray = [teamsArray[0]];
             const newPayload = {callerId, goToVM, runFunction: 'assignTeam', teamsArray};
@@ -171,8 +171,8 @@ function teamsMenu(twiml, context, event, payload) {
               timeout: 5,
               action: `/victorops?${qs.stringify({payloadString})}`,
               numDigits: teamsArray.length.toString().length
-            }).say({VOICE}, `${menuPrompt} Press zero to repeat this menu.`);
-            twiml.say({VOICE}, 'We did not receive a response. Goodbye.');
+            }).say({voice}, `${menuPrompt} Press zero to repeat this menu.`);
+            twiml.say({voice}, 'We did not receive a response. Goodbye.');
           }
 
           resolve(twiml);
@@ -198,7 +198,7 @@ function teamsMenu(twiml, context, event, payload) {
         }).catch(err => {
 
           console.log(err);
-          twiml.say({VOICE}, 'There was an error retrieving the list of teams for your organization. Goodbye.');
+          twiml.say({voice}, 'There was an error retrieving the list of teams for your organization. Goodbye.');
           
           resolve(twiml);
 
@@ -216,7 +216,7 @@ function assignTeam(twiml, event, payload) {
   return new Promise((resolve, reject) => {
 
     const {Digits} = event;
-    const {callerId, goToVM, VOICE} = payload;
+    const {callerId, goToVM, voice} = payload;
 
     if (Digits === '0') {
       const newPayload = {callerId, goToVM, runFunction: 'teamsMenu'};
@@ -237,7 +237,7 @@ function assignTeam(twiml, event, payload) {
           const payloadString = JSON.stringify(newPayload);
           twiml.redirect(`/victorops?${qs.stringify({payloadString})}`);
         } else {
-          twiml.say({VOICE}, 'We did not receive a valid response. Goodbye.');
+          twiml.say({voice}, 'We did not receive a valid response. Goodbye.');
         }
 
       } else if (teamsArray.length === 1) {
@@ -250,7 +250,7 @@ function assignTeam(twiml, event, payload) {
         const payloadString = JSON.stringify(newPayload);
         twiml.redirect(`/victorops?${qs.stringify({payloadString})}`);
       } else {
-        twiml.say({VOICE}, 'We did not receive a valid response. Goodbye.');
+        twiml.say({voice}, 'We did not receive a valid response. Goodbye.');
       }
 
     }
@@ -267,7 +267,7 @@ function buildOnCallList(twiml, context, payload) {
   return new Promise((resolve, reject) => {
 
     const {API_HOST, API_ID, API_KEY, NUMBER_OF_MENUS} = context;
-    const {callerId, teamsArray, VOICE} = payload;
+    const {callerId, teamsArray, voice} = payload;
 
     const escPolicyUrlArray = createEscPolicies(teamsArray[0].slug);
     const phoneNumberArray = escPolicyUrlArray.map(getPhoneNumbers);
@@ -289,7 +289,7 @@ function buildOnCallList(twiml, context, payload) {
       } else {
         const newPayload = {callerId, firstCall: 'yes', phoneNumbers, runFunction: 'call', teamsArray};
         const payloadString = JSON.stringify(newPayload);
-        twiml.say({VOICE}, message);
+        twiml.say({voice}, message);
         twiml.redirect(`/victorops?${qs.stringify({payloadString})}`);
       }
 
@@ -298,7 +298,7 @@ function buildOnCallList(twiml, context, payload) {
     }).catch(err => {
 
       console.log(err);
-      twiml.say({VOICE}, 'There was an error retrieving the on-call phone numbers. Please try again.');
+      twiml.say({voice}, 'There was an error retrieving the on-call phone numbers. Please try again.');
       
       resolve(twiml);
 
@@ -414,16 +414,16 @@ function call(twiml, context, event, payload) {
 
     const {TWILIO_URL} = context;
     const {DialCallStatus, From} = event;
-    const {callerId, firstCall, goToVM, phoneNumbers, teamsArray, VOICE} = payload;
+    const {callerId, firstCall, goToVM, phoneNumbers, teamsArray, voice} = payload;
     let {detailedLog, realCallerId} = payload;
     let phoneNumber;
 
     if (DialCallStatus === 'completed') {
-      twiml.say({VOICE}, 'The other party has disconnected. Goodbye.');
+      twiml.say({voice}, 'The other party has disconnected. Goodbye.');
     } else {
 
       if (firstCall !== 'yes') {
-        twiml.say({VOICE}, 'Trying next on-call representative');
+        twiml.say({voice}, 'Trying next on-call representative');
       } else {
         realCallerId = From;
       }
@@ -483,7 +483,7 @@ function isHuman(twiml, event, payload) {
 
     const {TWILIO_URL} = context;
     const {Digits} = event;
-    const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray, VOICE} = payload;
+    const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray, voice} = payload;
 
     if (Digits === undefined) {
       const newPayload = {detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'isHuman', teamsArray};
@@ -493,13 +493,13 @@ function isHuman(twiml, event, payload) {
         timeout: 5,
         action: `/victorops?${qs.stringify({payloadString})}`,
         numDigits: 1
-      }).say({VOICE}, 'This is Victor Ops Live Call Routing. Press any key to connect.');
-      twiml.say({VOICE}, 'We did not receive a response. Goodbye.');
+      }).say({voice}, 'This is Victor Ops Live Call Routing. Press any key to connect.');
+      twiml.say({voice}, 'We did not receive a response. Goodbye.');
       twiml.hangup();
     } else {
       const newPayload = {callAnsweredByHuman: 'yes', detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'postToVictorOps', teamsArray};
       const payloadString = JSON.stringify(newPayload);
-      twiml.say({VOICE}, 'You are now connected.');
+      twiml.say({voice}, 'You are now connected.');
       twiml.redirect(`${TWILIO_URL}/victorops?${qs.stringify({payloadString})}`);
     }
 
@@ -515,15 +515,15 @@ function leaveAMessage(twiml, event, payload) {
   return new Promise((resolve, reject) => {
 
     const {DialCallStatus} = event;
-    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, VOICE} = payload;
+    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice} = payload;
 
     const newPayload = {detailedLog, teamsArray};
     const payloadString = JSON.stringify(newPayload);
 
     if (DialCallStatus === 'completed') {
-      twiml.say({VOICE}, 'The other party has disconnected. Goodbye.');
+      twiml.say({voice}, 'The other party has disconnected. Goodbye.');
     } else if (sayGoodbye === 'yes') {
-      twiml.say({VOICE}, 'Twilio will try to transcribe your message and create an incident in Victor Ops. Goodbye.');
+      twiml.say({voice}, 'Twilio will try to transcribe your message and create an incident in Victor Ops. Goodbye.');
     } else {
       let message = `Please leave a message for the ${teamsArray[0].name} team and hang up when you are finished.`
 
@@ -531,7 +531,7 @@ function leaveAMessage(twiml, event, payload) {
         message = `We were unable to reach an on-call representative. ${message}`;
       }
 
-      twiml.say({VOICE}, message);
+      twiml.say({voice}, message);
       twiml.record({
           transcribe: true,
           transcribeCallback: `/victorops?${qs.stringify({payloadString: JSON.stringify({callerId, detailedLog, goToVM, runFunction: 'postToVictorOps', teamsArray})})}`,
