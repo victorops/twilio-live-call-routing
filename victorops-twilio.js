@@ -5,7 +5,6 @@
 
 const qs = require('qs');
 const got = require('got');
-const moment = require('moment');
 
 module.exports = {assignTeam, buildOnCallList, call, callOrMessage, handler, isHuman, leaveAMessage, main, postToVictorOps, teamsMenu};
 
