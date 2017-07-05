@@ -333,33 +333,23 @@ function buildOnCallList(twiml, context, payload) {
           }).then(response => {
 
             const body = JSON.parse(response.body);
-            const {overrides, schedule} = body;
+            const {schedule} = body;
             const onCallArray = [];
 
-            schedule.forEach((currentValue, i, array) => {
-              currentValue.rolls.forEach((roll, j, array) => {
+            schedule.forEach((rotation, i, array) => {
 
-                if (moment().isBetween(roll.change, roll.until)) {
-                  let overrideExists = false;
-                  let user;
-                  overrides.forEach((override, k, array) => {
+              let user;
 
-                    if (override.origOnCall === roll.onCall && moment().isBetween(override.start, override.end)) {
-                      overrideExists = true;
-                      user = override.overrideOnCall;
-                    }
+              if (rotation.onCall !== undefined) {
 
-                  });
-
-                  if (overrideExists === false) {
-                    onCallArray.push(roll.onCall);
-                  } else {
-                    onCallArray.push(user);
-                  }
-
+                if (rotation.overrideOnCall !== undefined) {
+                  onCallArray.push(rotation.overrideOnCall);
+                } else {
+                  onCallArray.push(rotation.onCall);
                 }
+
+              }
               
-              });
             });
 
             if (onCallArray.length === 0) {
