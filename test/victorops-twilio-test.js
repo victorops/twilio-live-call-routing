@@ -22,7 +22,7 @@ describe('main()', function() {
 });
 
 describe('callOrMessage()', function() {
-  const p = app.callOrMessage(twiml, payload);
+  const p = app.callOrMessage(twiml, context, payload);
   it(`should be a function`, function() {
     assert.equal(typeof app.callOrMessage === 'function', true, typeof app.callOrMessage);
   });
@@ -48,7 +48,7 @@ describe('teamsMenu()', function() {
 });
 
 describe('assignTeam()', function() {
-  const p = app.assignTeam(twiml, event, payload);
+  const p = app.assignTeam(twiml, context, event, payload);
   it(`should be a function`, function() {
     assert.equal(typeof app.assignTeam === 'function', true, typeof app.assignTeam);
   });
@@ -100,7 +100,7 @@ describe('isHuman()', function() {
 });
 
 describe('leaveAMessage()', function() {
-  const p = app.leaveAMessage(twiml, event, payload);
+  const p = app.leaveAMessage(twiml, context, event, payload);
   it(`should be a function`, function() {
     assert.equal(typeof app.leaveAMessage === 'function', true, typeof app.leaveAMessage);
   });
