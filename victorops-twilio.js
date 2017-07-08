@@ -150,11 +150,16 @@ function teamsMenu(twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
 
     const {API_HOST, API_ID, API_KEY, NUMBER_OF_MENUS, TEAM_1} = context;
-    const {Digits} = event;
+    let {Digits} = event;
+    Digits = parseInt(Digits);
     const {callerId, voice} = payload;
     let {goToVM} = payload;
 
-    if (Digits === '0') {
+    if (Digits === 0) {
+      twiml.redirect(generateCallbackURI(context, {callerId}));
+      resolve(twiml);
+    } else if (Digits !== 1 && Digits !== 2) {
+      twiml.say('We did not receive a valid response.');
       twiml.redirect(generateCallbackURI(context, {callerId}));
       resolve(twiml);
     } else {
@@ -170,7 +175,7 @@ function teamsMenu(twiml, context, event, payload) {
 
         let teamsArray;
 
-        if (Digits === '2') {
+        if (Digits === 2) {
           goToVM = 'yes';
         }
 
@@ -248,11 +253,14 @@ function assignTeam(twiml, context, event, payload) {
 
   return new Promise((resolve, reject) => {
 
-    const {Digits} = event;
+    let {Digits} = event;
+    Digits = parseInt(Digits);
     const {callerId, goToVM, voice} = payload;
 
-    if (Digits === '0') {
+    if (Digits === 0) {
       twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'teamsMenu'}));
+    } else if (Digits === NaN) {
+      twiml.say({voice}, 'We did not receive a valid response. Goodbye.');
     } else {
       let {teamsArray} = payload;
 
