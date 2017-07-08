@@ -5,6 +5,7 @@
 
 const qs = require('qs');
 const got = require('got');
+const _ = require('lodash');
 
 module.exports = {
   assignTeam,
@@ -22,16 +23,15 @@ module.exports = {
 
 function handler(context, event, callback) {
 
-  const {API_ID, API_KEY, REST_ENDPOINT_API_KEY, TWILIO_URL, NUMBER_OF_MENUS} = context;
   const {payloadString, To} = event;
-  const payload = typeof payloadString === 'undefined' ? {} : JSON.parse(payloadString);
+  const payload = _.isUndefined(payloadString) ? {} : JSON.parse(payloadString);
   const {runFunction} = payload;
   let {ALERT_HOST, API_HOST, voice} = context;
-  context.ALERT_HOST = typeof ALERT_HOST === 'undefined' ? 'alert.victorops.com' : ALERT_HOST;
-  context.API_HOST = typeof API_HOST === 'undefined' ? 'api.victorops.com' : API_HOST;
+  context.ALERT_HOST = _.isUndefined(ALERT_HOST) ? 'alert.victorops.com' : ALERT_HOST;
+  context.API_HOST = _.isUndefined(API_HOST) ? 'api.victorops.com' : API_HOST;
   payload.voice = (voice === 'alice' || voice === 'man') ? voice : 'woman';
   let {callerId} = payload;
-  payload.callerId = typeof callerId === 'undefined' ? To : callerId;
+  payload.callerId = _.isUndefined(callerId) ? To : callerId;
 
   let twiml = new Twilio.twiml.VoiceResponse();
 
@@ -52,7 +52,12 @@ function requiredConfigsExist(context) {
 
   const {API_ID, API_KEY, REST_ENDPOINT_API_KEY, TWILIO_URL} = context;
 
-  if (typeof API_ID === 'undefined' || typeof API_KEY === 'undefined' || typeof REST_ENDPOINT_API_KEY === 'undefined' || typeof TWILIO_URL === 'undefined') {
+  if (
+    _.isUndefined(API_ID) ||
+    _.isUndefined(API_KEY) ||
+    _.isUndefined(REST_ENDPOINT_API_KEY) ||
+    _.isUndefined(TWILIO_URL)
+  ) {
     return false;
   } else {
     return true;
@@ -66,7 +71,7 @@ function main(twiml, context, event, payload) {
   const {NUMBER_OF_MENUS} = context;
   const {runFunction} = payload;
 
-  if (typeof runFunction === 'undefined') {
+  if (_.isUndefined(runFunction)) {
     switch (NUMBER_OF_MENUS) {
       case '0':
       case '1':
@@ -169,7 +174,7 @@ function teamsMenu(twiml, context, event, payload) {
           goToVM = 'yes';
         }
 
-        if (typeof TEAM_1 === 'undefined') {
+        if (_.isUndefined(TEAM_1)) {
           teamsArray = JSON.parse(response.body).map(team => {return {name: team.name, slug: team.slug};});
         } else {
           teamsArray = buildManualTeamList(context, 1);
@@ -224,7 +229,7 @@ function buildManualTeamList(context, teamNumber, arrayOfTeams = []) {
 
   const key = 'TEAM_' + teamNumber;
 
-  if (typeof context[key] === 'undefined') {
+  if (_.isUndefined(context[key])) {
     return arrayOfTeams;
   }
 
@@ -363,9 +368,9 @@ function getPhoneNumbers(context, escPolicyUrl) {
 
         let user;
 
-        if (typeof rotation.onCall !== 'undefined') {
+        if (_.isUndefined(rotation.onCall)) {
 
-          if (typeof rotation.overrideOnCall !== 'undefined') {
+          if (_.isUndefined(rotation.overrideOnCall)) {
             onCallArray.push(rotation.overrideOnCall);
           } else {
             onCallArray.push(rotation.onCall);
@@ -493,7 +498,7 @@ function isHuman(twiml, context, event, payload) {
     const {Digits} = event;
     const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray, voice} = payload;
 
-    if (typeof Digits === 'undefined') {
+    if (_.isUndefined(Digits)) {
       twiml.gather({
         input: 'dtmf',
         timeout: 5,
@@ -563,11 +568,11 @@ function postToVictorOps(event, context, payload) {
       entity_display_name: 'Twilio Live Call Routing Details'
     };
 
-    if (typeof TranscriptionText !== 'undefined' && TranscriptionText !== '') {
+    if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
       alert.message_type = 'critical';
       alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
       alert.state_message = `Transcribed message from Twilio:\n${TranscriptionText}${detailedLog || ''}`;
-    } else if (typeof TranscriptionText !== 'undefined') {
+    } else if (!(_.isUndefined(TranscriptionText))) {
       alert.message_type = 'critical';
       alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
       alert.state_message = `Twilio was unable to transcribe message.${detailedLog || ''}`;
