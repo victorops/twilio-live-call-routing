@@ -172,7 +172,7 @@ function teamsMenu(twiml, context, event, payload) {
         if (typeof TEAM_1 === 'undefined') {
           teamsArray = JSON.parse(response.body).map(team => {return {name: team.name, slug: team.slug};});
         } else {
-          teamsArray = buildManualTeamList(1);
+          teamsArray = buildManualTeamList(context, 1);
         }
 
         if (teamsArray.length === 0) {
@@ -220,7 +220,7 @@ function teamsMenu(twiml, context, event, payload) {
 }
 
 
-function buildManualTeamList(teamNumber, arrayOfTeams = []) {
+function buildManualTeamList(context, teamNumber, arrayOfTeams = []) {
 
   const key = 'TEAM_' + teamNumber;
 
@@ -234,7 +234,7 @@ function buildManualTeamList(teamNumber, arrayOfTeams = []) {
 
   newArray.push({name, slug});
 
-  return buildManualTeamList(teamNumber + 1, newArray);
+  return buildManualTeamList(context, teamNumber + 1, newArray);
 
 }
 
@@ -290,7 +290,8 @@ function buildOnCallList(twiml, context, payload) {
     const escPolicyUrlArray = createEscPolicies(context, teamsArray[0].slug);
     const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url));
 
-    Promise.all(phoneNumberArray).then(phoneNumbers => {
+    Promise.all(phoneNumberArray)
+    .then(phoneNumbers => {
 
       phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== false);
 
@@ -309,7 +310,8 @@ function buildOnCallList(twiml, context, payload) {
 
       resolve(twiml);
 
-    }).catch(err => {
+    })
+    .catch(err => {
 
       console.log(err);
       twiml.say({voice}, 'There was an error retrieving the on-call phone numbers. Please try again.');
@@ -445,7 +447,8 @@ function call(twiml, context, event, payload) {
             action: generateCallbackURI(context, {callerId, goToVM, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'leaveAMessage', teamsArray}),
             callerId
           }
-        ).number(
+        )
+        .number(
           {
             url: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, runFunction: 'isHuman', teamsArray}),
             statusCallback: generateCallbackURI(context, {callerId, detailedLog, goToVM, phoneNumber, phoneNumbers, runFunction: 'postToVictorOps', teamsArray}),
@@ -462,7 +465,8 @@ function call(twiml, context, event, payload) {
             action: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'call', teamsArray}),
             callerId
           }
-        ).number(
+        )
+        .number(
           {
             url: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'isHuman', teamsArray}),
             statusCallback: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'postToVictorOps', teamsArray}),
@@ -588,11 +592,13 @@ function postToVictorOps(event, context, payload) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(alert)
       }
-    ).then(response => {
+    )
+    .then(response => {
 
       resolve('');
 
-    }).catch(err => {
+    })
+    .catch(err => {
 
       console.log(err);
       
