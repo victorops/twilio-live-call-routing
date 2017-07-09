@@ -39,10 +39,8 @@ function handler(context, event, callback) {
     nextOnCall: 'Trying next on-call representative.',
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
-    voicemailPart1: 'Please leave a message for the',
-    voicemailPart2: 'team and hang up when you are finished.',
-    connectingPart1: 'We are connecting you to the representative on-call for the',
-    connectingPart2: 'team - Please hold.'
+    voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
+    connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`
   }
 
   const {payloadString, To} = event;
@@ -333,7 +331,7 @@ function buildOnCallList(twiml, context, payload) {
 
       phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== false);
 
-      let message = `${messages.connectingPart1} ${teamsArray[0].name} ${messages.connectingPart2}`;
+      let message = messages.connecting(teamsArray[0].name);
 
       if (NUMBER_OF_MENUS === '0') {
         message = `${messages.greeting} ${message}`;
@@ -401,9 +399,9 @@ function getPhoneNumbers(context, escPolicyUrl) {
 
         let user;
 
-        if (_.isUndefined(rotation.onCall)) {
+        if (!(_.isUndefined(rotation.onCall))) {
 
-          if (_.isUndefined(rotation.overrideOnCall)) {
+          if (!(_.isUndefined(rotation.overrideOnCall))) {
             onCallArray.push(rotation.overrideOnCall);
           } else {
             onCallArray.push(rotation.onCall);
@@ -566,7 +564,7 @@ function leaveAMessage(twiml, context, event, payload) {
     } else if (sayGoodbye === 'yes') {
       twiml.say({voice}, `${messages.attemptTranscription} ${messages.goodbye}`);
     } else {
-      let message = `${messages.voicemailPart1} ${teamsArray[0].name} ${messages.voicemailPart2}`
+      let message = messages.voicemail(teamsArray[0].name);
 
       if (goToVM !== 'yes') {
         message = `${messages.noAnswer} ${message}`;
