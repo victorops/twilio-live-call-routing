@@ -49,6 +49,7 @@ function handler(context, event, callback) {
     voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`
   }
 
+  const {API_KEY, API_ID} = context;
   const {payloadString, To} = event;
   const payload = _.isUndefined(payloadString)
     ? {}
@@ -62,6 +63,11 @@ function handler(context, event, callback) {
     ? 'api.victorops.com'
     : API_HOST;
   context.messages = messages;
+  context.headers = {
+    'Content-Type': 'application/json',
+    'X-VO-Api-Key': API_KEY,
+    'X-VO-Api-Id': API_ID
+  };
   payload.voice = (voice === 'alice' || voice === 'man')
     ? voice
     : 'woman';
@@ -187,7 +193,7 @@ function teamsMenu(twiml, context, event, payload) {
 
   return new Promise((resolve, reject) => {
 
-    const {API_HOST, API_ID, API_KEY, messages, NUMBER_OF_MENUS, TEAM_1} = context;
+    const {API_HOST, headers, messages, NUMBER_OF_MENUS, TEAM_1} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
     const {callerId, voice} = payload;
@@ -202,13 +208,7 @@ function teamsMenu(twiml, context, event, payload) {
       resolve(twiml);
     } else {
 
-      got(`https://${API_HOST}/api-public/v1/team`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-VO-Api-Key': API_KEY,
-          'X-VO-Api-Id': API_ID
-        }
-      })
+      got(`https://${API_HOST}/api-public/v1/team`, {headers})
       .then(response => {
 
         let teamsArray;
@@ -396,15 +396,9 @@ function getPhoneNumbers(context, escPolicyUrl) {
 
   return new Promise((resolve, reject) => {
 
-    const {API_HOST, API_ID, API_KEY} = context;
+    const {API_HOST, headers} = context;
 
-    got(escPolicyUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-VO-Api-Key': API_KEY,
-        'X-VO-Api-Id': API_ID
-      }
-    })
+    got(escPolicyUrl, {headers})
     .then(response => {
 
       const body = JSON.parse(response.body);
@@ -433,13 +427,7 @@ function getPhoneNumbers(context, escPolicyUrl) {
 
       const randomIndex = Math.floor(Math.random() * onCallArray.length);
 
-      got(`https://${API_HOST}/api-public/v1/user/${onCallArray[randomIndex]}/contact-methods/phones`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-VO-Api-Key': API_KEY,
-          'X-VO-Api-Id': API_ID
-        }
-      })
+      got(`https://${API_HOST}/api-public/v1/user/${onCallArray[randomIndex]}/contact-methods/phones`, {headers})
       .then(response => {
 
         const body = JSON.parse(response.body);
