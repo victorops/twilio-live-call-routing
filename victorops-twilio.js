@@ -104,9 +104,13 @@ function requiredConfigsExist(context) {
     _.isUndefined(REST_ENDPOINT_API_KEY) ||
     _.isUndefined(TWILIO_URL)
   ) {
+
     return false;
+
   } else {
+
     return true;
+
   }
 
 }
@@ -224,7 +228,9 @@ function teamsMenu(twiml, context, event, payload) {
           {callerId}
         )
       );
+
       resolve(twiml);
+
     } else if (fromCallorMessage === true && Digits !== 1 && Digits !== 2) {
       twiml.say(
         {voice},
@@ -236,7 +242,9 @@ function teamsMenu(twiml, context, event, payload) {
           {callerId}
         )
       );
+
       resolve(twiml);
+
     } else {
 
       got(
@@ -254,10 +262,12 @@ function teamsMenu(twiml, context, event, payload) {
         if (_.isEmpty(buildManualTeamList(context))) {
           teamsArray = JSON.parse(response.body)
           .map(team => {
+
             return {
               name: team.name,
               slug: team.slug
             };
+
           });
         } else {
           teamsArray = buildManualTeamList(context);
@@ -585,7 +595,9 @@ function getPhoneNumbers(context, escPolicyUrl) {
       });
 
       if (onCallArray.length === 0) {
+
         return resolve(false);
+
       }
 
       const randomIndex = Math.floor(Math.random() * onCallArray.length);
@@ -599,20 +611,25 @@ function getPhoneNumbers(context, escPolicyUrl) {
         const body = JSON.parse(response.body);
 
         if (body.contactMethods.length === 0) {
+
           return resolve(false);
+
         } else {
+
           return resolve(
             {
               phone: body.contactMethods[0].value,
               user: onCallArray[randomIndex]
             }
           );
+
         }
 
       })
       .catch(err => {
 
         console.log('err', err);
+
         return reject(err);
 
       });
@@ -621,6 +638,7 @@ function getPhoneNumbers(context, escPolicyUrl) {
     .catch(err => {
 
       console.log(err);
+
       return reject(err);
 
     });
@@ -935,6 +953,7 @@ function postToVictorOps(event, context, payload) {
       resolve('');
       
       return;
+
     }
 
     got.post(
