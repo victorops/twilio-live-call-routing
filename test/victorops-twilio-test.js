@@ -3,10 +3,43 @@ const mocha = require('mocha');
 const app = require('../victorops-twilio');
 const assert = require('assert');
 
-const twiml = {gather: function() {return twiml}, say: function() {}, redirect: function() {}, dial: function() {return twiml}, number: function() {}, hangup: function() {}, record: function() {}};
-const context = {API_HOST: 'api.victorops.com', ALERT_HOST: 'alert.victorops.com', API_ID: 'ee36e5d9', API_KEY: 'c441281d680a6508cfc16d47187c5582', headers: {'Content-Type': 'application/json', 'X-VO-Api-Key': 'c441281d680a6508cfc16d47187c5582', 'X-VO-Api-Id': 'ee36e5d9'}, messages: {voicemail: () => {}, connecting: () => {}}, REST_ENDPOINT_API_KEY: '1394aab4-c4e1-4fdb-890b-e40f64e2b35a', TWILIO_URL: 'string', NUMBER_OF_MENUS: '2', VOICE: undefined};
+const twiml = {
+  gather: function() {return twiml},
+  say: function() {},
+  redirect: function() {},
+  dial: function() {return twiml},
+  number: function() {},
+  hangup: function() {},
+  record: function() {}
+};
+const context = {
+  API_HOST: 'api.victorops.com',
+  ALERT_HOST: 'alert.victorops.com',
+  API_ID: 'ee36e5d9',
+  API_KEY: 'c441281d680a6508cfc16d47187c5582',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-VO-Api-Key': 'c441281d680a6508cfc16d47187c5582',
+    'X-VO-Api-Id': 'ee36e5d9'
+  },
+  messages: {
+    voicemail: () => {},
+    connecting: () => {}
+  },
+  REST_ENDPOINT_API_KEY: '1394aab4-c4e1-4fdb-890b-e40f64e2b35a',
+  TWILIO_URL: 'string',
+  NUMBER_OF_MENUS: '2',
+  VOICE: undefined
+};
 const event = {payloadString: JSON.stringify({}), To: '+1 444-333-2222'};
-const payload = {callerId: '+15555555555', VOICE: 'woman', teamsArray: [{name: 'Everyone', slug: 'everyone'}], phoneNumbers: [{user: 'dscott', phone: '+1 555-777-9999'}], runFunction: 'teamsMenu'};
+const payload = {
+  callerId: '+15555555555',
+  voice: 'woman',
+  teamsArray: [{name: 'Everyone', slug: 'everyone'}],
+  phoneNumbers: [{user: 'dscott', phone: '+1 555-777-9999'}],
+  runFunction: 'teamsMenu'
+};
+
 
 describe('main()', function() {
   const p = app.main(twiml, context, event, payload);
