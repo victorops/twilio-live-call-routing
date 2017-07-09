@@ -193,7 +193,7 @@ function teamsMenu(twiml, context, event, payload) {
 
   return new Promise((resolve, reject) => {
 
-    const {API_HOST, headers, messages, NUMBER_OF_MENUS, TEAM_1} = context;
+    const {API_HOST, headers, messages, NUMBER_OF_MENUS} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
     const {callerId, fromCallorMessage, voice} = payload;
@@ -214,7 +214,7 @@ function teamsMenu(twiml, context, event, payload) {
         let teamsArray;
 
         if (Digits === 2) {
-          goToVM = 'yes';
+          goToVM = true;
         }
 
         if (_.isEmpty(buildManualTeamList(context))) {
@@ -304,7 +304,7 @@ function assignTeam(twiml, context, event, payload) {
     } else {
       let {teamsArray} = payload;
 
-      if (goToVM === 'yes') {
+      if (goToVM === true) {
 
         if (teamsArray.length === 1) {
           twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'leaveAMessage', teamsArray}));
@@ -358,7 +358,7 @@ function buildOnCallList(twiml, context, payload) {
         twiml.redirect(generateCallbackURI(context, {phoneNumbers, runFunction: 'leaveAMessage', teamsArray}));
       } else {
         twiml.say({voice}, message);
-        twiml.redirect(generateCallbackURI(context, {callerId, firstCall: 'yes', phoneNumbers, runFunction: 'call', teamsArray}));
+        twiml.redirect(generateCallbackURI(context, {callerId, firstCall: true, phoneNumbers, runFunction: 'call', teamsArray}));
       }
 
       resolve(twiml);
@@ -474,7 +474,7 @@ function call(twiml, context, event, payload) {
       twiml.say({voice}, `${messages.otherPartyDisconnect} ${messages.goodbye}`);
     } else {
 
-      if (firstCall !== 'yes') {
+      if (firstCall !== true) {
         twiml.say({voice}, `${messages.nextOnCall}`);
       } else {
         realCallerId = From;
@@ -546,7 +546,7 @@ function isHuman(twiml, context, event, payload) {
       twiml.hangup();
     } else {
       twiml.say({voice}, `${messages.connected}`);
-      twiml.redirect(generateCallbackURI(context, {callAnsweredByHuman: 'yes', detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'postToVictorOps', teamsArray}));
+      twiml.redirect(generateCallbackURI(context, {callAnsweredByHuman: true, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'postToVictorOps', teamsArray}));
     }
 
     resolve(twiml);
@@ -566,12 +566,12 @@ function leaveAMessage(twiml, context, event, payload) {
 
     if (DialCallStatus === 'completed') {
       twiml.say({voice}, `${messages.otherPartyDisconnect} ${messages.goodbye}`);
-    } else if (sayGoodbye === 'yes') {
+    } else if (sayGoodbye === true) {
       twiml.say({voice}, `${messages.attemptTranscription} ${messages.goodbye}`);
     } else {
       let message = messages.voicemail(teamsArray[0].name);
 
-      if (goToVM !== 'yes') {
+      if (goToVM !== true) {
         message = `${messages.noAnswer} ${message}`;
       }
 
@@ -580,7 +580,7 @@ function leaveAMessage(twiml, context, event, payload) {
           transcribe: true,
           transcribeCallback: generateCallbackURI(context, {callerId, detailedLog, goToVM, runFunction: 'postToVictorOps', teamsArray}),
           timeout: 10,
-          action: generateCallbackURI(context, {callerId, detailedLog, runFunction: 'leaveAMessage', sayGoodbye: 'yes', teamsArray})
+          action: generateCallbackURI(context, {callerId, detailedLog, runFunction: 'leaveAMessage', sayGoodbye: true, teamsArray})
         });
     }
 
@@ -607,17 +607,17 @@ function postToVictorOps(event, context, payload) {
 
     if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
       alert.message_type = 'critical';
-      alert.entity_display_name = goToVM === 'yes'
+      alert.entity_display_name = goToVM === true
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciption(TranscriptionText, detailedLog);
     } else if (!(_.isUndefined(TranscriptionText))) {
       alert.message_type = 'critical';
-      alert.entity_display_name = goToVM === 'yes'
+      alert.entity_display_name = goToVM === true
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciptionFail(detailedLog);
-    } else if (callAnsweredByHuman === 'yes') {
+    } else if (callAnsweredByHuman === true) {
       alert.message_type = 'acknowledgement';
       alert.state_message = messages.voCallAnswered(phoneNumber.user, realCallerId, detailedLog);
       alert.ack_author = phoneNumbers[0].user;
