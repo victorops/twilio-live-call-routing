@@ -166,7 +166,7 @@ function callOrMessage(twiml, context, payload) {
     twiml.gather({
       input: 'dtmf',
       timeout: 10,
-      action: generateCallbackURI(context, {callerId, runFunction: 'teamsMenu'}),
+      action: generateCallbackURI(context, {callerId, fromCallorMessage: true, runFunction: 'teamsMenu'}),
       numDigits: 1
     })
     .say({voice}, `${messages.greeting} ${messages.menu} ${messages.zeroToRepeat}`);
@@ -196,14 +196,14 @@ function teamsMenu(twiml, context, event, payload) {
     const {API_HOST, headers, messages, NUMBER_OF_MENUS, TEAM_1} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
-    const {callerId, voice} = payload;
+    const {callerId, fromCallorMessage, voice} = payload;
     let {goToVM} = payload;
 
     if (Digits === 0) {
       twiml.redirect(generateCallbackURI(context, {callerId}));
       resolve(twiml);
-    } else if (Digits !== 1 && Digits !== 2) {
-      twiml.say(`${messages.invalidResponse}`);
+    } else if (fromCallorMessage === true && Digits !== 1 && Digits !== 2) {
+      twiml.say({voice}, `${messages.invalidResponse}`);
       twiml.redirect(generateCallbackURI(context, {callerId}));
       resolve(twiml);
     } else {
@@ -217,10 +217,10 @@ function teamsMenu(twiml, context, event, payload) {
           goToVM = 'yes';
         }
 
-        if (_.isUndefined(TEAM_1)) {
+        if (_.isEmpty(buildManualTeamList(context))) {
           teamsArray = JSON.parse(response.body).map(team => {return {name: team.name, slug: team.slug};});
         } else {
-          teamsArray = buildManualTeamList(context, 1);
+          teamsArray = buildManualTeamList(context);
         }
 
         if (teamsArray.length === 0) {
@@ -268,21 +268,22 @@ function teamsMenu(twiml, context, event, payload) {
 }
 
 
-function buildManualTeamList(context, teamNumber, arrayOfTeams = []) {
+function buildManualTeamList(context) {
 
-  const key = 'TEAM_' + teamNumber;
+  const arrayOfTeams = [];
 
-  if (_.isUndefined(context[key])) {
-    return arrayOfTeams;
-  }
+  Object.keys(context).forEach((key) => {
 
-  const newArray = arrayOfTeams.slice();
-  const name = context[key];
-  const slug = context[key].toLowerCase().replace(/[^a-z0-9-~_]/g, '-');
+    if (key.substring(0,4).toLowerCase() === 'team') {
+      const name = context[key];
+      const slug = context[key].toLowerCase().replace(/[^a-z0-9-~_]/g, '-');
 
-  newArray.push({name, slug});
+      arrayOfTeams.push({name, slug});
+    }
 
-  return buildManualTeamList(context, teamNumber + 1, newArray);
+  });
+
+  return arrayOfTeams;
 
 }
 
