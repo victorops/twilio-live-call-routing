@@ -83,7 +83,10 @@ function handler(context, event, callback) {
     .then(result => callback(null, result))
     .catch(err => console.log(err));
   } else {
-    twiml.say({voice: payload.voice}, context.messages.missingConfig);
+    twiml.say(
+      {voice: payload.voice},
+      context.messages.missingConfig
+    );
 
     callback(null, twiml);
   }
@@ -163,14 +166,29 @@ function callOrMessage(twiml, context, payload) {
     const {messages} = context;
     const {callerId, voice} = payload;
 
-    twiml.gather({
-      input: 'dtmf',
-      timeout: 10,
-      action: generateCallbackURI(context, {callerId, fromCallorMessage: true, runFunction: 'teamsMenu'}),
-      numDigits: 1
-    })
-    .say({voice}, `${messages.greeting} ${messages.menu} ${messages.zeroToRepeat}`);
-    twiml.say({voice}, `${messages.noResponse} ${messages.goodbye}`);
+    twiml.gather(
+      {
+        input: 'dtmf',
+        timeout: 10,
+        action: generateCallbackURI(
+          context,
+          {
+            callerId,
+            fromCallorMessage: true,
+            runFunction: 'teamsMenu'
+          }
+        ),
+        numDigits: 1
+      }
+    )
+    .say(
+      {voice},
+      `${messages.greeting} ${messages.menu} ${messages.zeroToRepeat}`
+    );
+    twiml.say(
+      {voice},
+      `${messages.noResponse} ${messages.goodbye}`
+    );
     
     resolve(twiml);
 
@@ -200,15 +218,31 @@ function teamsMenu(twiml, context, event, payload) {
     let {goToVM} = payload;
 
     if (Digits === 0) {
-      twiml.redirect(generateCallbackURI(context, {callerId}));
+      twiml.redirect(
+        generateCallbackURI(
+          context,
+          {callerId}
+        )
+      );
       resolve(twiml);
     } else if (fromCallorMessage === true && Digits !== 1 && Digits !== 2) {
-      twiml.say({voice}, `${messages.invalidResponse}`);
-      twiml.redirect(generateCallbackURI(context, {callerId}));
+      twiml.say(
+        {voice},
+        `${messages.invalidResponse}`
+      );
+      twiml.redirect(
+        generateCallbackURI(
+          context,
+          {callerId}
+        )
+      );
       resolve(twiml);
     } else {
 
-      got(`https://${API_HOST}/api-public/v1/team`, {headers})
+      got(
+        `https://${API_HOST}/api-public/v1/team`,
+        {headers}
+      )
       .then(response => {
 
         let teamsArray;
@@ -218,16 +252,35 @@ function teamsMenu(twiml, context, event, payload) {
         }
 
         if (_.isEmpty(buildManualTeamList(context))) {
-          teamsArray = JSON.parse(response.body).map(team => {return {name: team.name, slug: team.slug};});
+          teamsArray = JSON.parse(response.body)
+          .map(team => {
+            return {
+              name: team.name,
+              slug: team.slug
+            };
+          });
         } else {
           teamsArray = buildManualTeamList(context);
         }
 
         if (teamsArray.length === 0) {
-          twiml.say({voice}, `${messages.noTeamsError} ${messages.goodbye}`);
+          twiml.say(
+            {voice},
+            `${messages.noTeamsError} ${messages.goodbye}`
+          );
         } else if (teamsArray.length === 1 || NUMBER_OF_MENUS === '0') {
           teamsArray = [teamsArray[0]];
-          twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'assignTeam', teamsArray}));
+          twiml.redirect(
+            generateCallbackURI(
+              context,
+              {
+                callerId,
+                goToVM,
+                runFunction: 'assignTeam',
+                teamsArray
+              }
+            )
+          );
         } else {
           let menuPrompt = 'Please press';
 
@@ -239,14 +292,30 @@ function teamsMenu(twiml, context, event, payload) {
             menuPrompt = `${messages.greeting} ${menuPrompt}`;
           }
 
-          twiml.gather({
-            input: 'dtmf',
-            timeout: 5,
-            action: generateCallbackURI(context, {callerId, goToVM, runFunction: 'assignTeam', teamsArray}),
-            numDigits: teamsArray.length.toString().length
-          })
-          .say({voice}, `${menuPrompt} ${messages.zeroToRepeat}`);
-          twiml.say({voice}, `${messages.noResponse} ${messages.goodbye}`);
+          twiml.gather(
+            {
+              input: 'dtmf',
+              timeout: 5,
+              action: generateCallbackURI(
+                context,
+                {
+                  callerId,
+                  goToVM,
+                  runFunction: 'assignTeam',
+                  teamsArray
+                }
+              ),
+              numDigits: teamsArray.length.toString().length
+            }
+          )
+          .say(
+            {voice},
+            `${menuPrompt} ${messages.zeroToRepeat}`
+          );
+          twiml.say(
+            {voice},
+            `${messages.noResponse} ${messages.goodbye}`
+          );
         }
 
         resolve(twiml);
@@ -255,7 +324,10 @@ function teamsMenu(twiml, context, event, payload) {
       .catch(err => {
 
         console.log(err);
-        twiml.say({voice}, `${messages.noTeamsError} ${messages.goodbye}`);
+        twiml.say(
+          {voice},
+          `${messages.noTeamsError} ${messages.goodbye}`
+        );
         
         resolve(twiml);
 
@@ -278,7 +350,12 @@ function buildManualTeamList(context) {
       const name = context[key];
       const slug = context[key].toLowerCase().replace(/[^a-z0-9-~_]/g, '-');
 
-      arrayOfTeams.push({name, slug});
+      arrayOfTeams.push(
+        {
+          name,
+          slug
+        }
+      );
     }
 
   });
@@ -298,30 +375,88 @@ function assignTeam(twiml, context, event, payload) {
     const {callerId, goToVM, voice} = payload;
 
     if (Digits === 0) {
-      twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'teamsMenu'}));
+      twiml.redirect(
+        generateCallbackURI(
+          context,
+          {
+            callerId,
+            goToVM,
+            runFunction: 'teamsMenu'
+          }
+        )
+      );
     } else if (Digits === NaN) {
-      twiml.say({voice}, `${messages.invalidResponse} ${messages.goodbye}`);
+      twiml.say(
+        {voice},
+        `${messages.invalidResponse} ${messages.goodbye}`
+      );
     } else {
       let {teamsArray} = payload;
 
       if (goToVM === true) {
 
         if (teamsArray.length === 1) {
-          twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'leaveAMessage', teamsArray}));
+          twiml.redirect(
+            generateCallbackURI(
+              context,
+              {
+                callerId,
+                goToVM,
+                runFunction: 'leaveAMessage',
+                teamsArray
+              }
+            )
+          );
         } else if (Digits <= teamsArray.length) {
           teamsArray = [teamsArray[Digits - 1]];
-          twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'leaveAMessage', teamsArray}));
+          twiml.redirect(
+            generateCallbackURI(
+              context,
+              {
+                callerId,
+                goToVM,
+                runFunction: 'leaveAMessage',
+                teamsArray
+              }
+            )
+          );
         } else {
-          twiml.say({voice}, `${messages.invalidResponse} ${messages.goodbye}`);
+          twiml.say(
+            {voice},
+            `${messages.invalidResponse} ${messages.goodbye}`
+          );
         }
 
       } else if (teamsArray.length === 1) {
-        twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'buildOnCallList', teamsArray}));
+        twiml.redirect(
+          generateCallbackURI(
+            context,
+            {
+              callerId,
+              goToVM,
+              runFunction: 'buildOnCallList',
+              teamsArray
+            }
+          )
+        );
       } else if (Digits <= teamsArray.length) {
         teamsArray = [teamsArray[Digits - 1]];
-        twiml.redirect(generateCallbackURI(context, {callerId, goToVM, runFunction: 'buildOnCallList', teamsArray}));
+        twiml.redirect(
+          generateCallbackURI(
+            context,
+            {
+              callerId,
+              goToVM,
+              runFunction: 'buildOnCallList',
+              teamsArray
+            }
+          )
+        );
       } else {
-        twiml.say({voice}, `${messages.invalidResponse} ${messages.goodbye}`);
+        twiml.say(
+          {voice},
+          `${messages.invalidResponse} ${messages.goodbye}`
+        );
       }
 
     }
@@ -355,10 +490,31 @@ function buildOnCallList(twiml, context, payload) {
       }
 
       if (phoneNumbers.length === 0) {
-        twiml.redirect(generateCallbackURI(context, {phoneNumbers, runFunction: 'leaveAMessage', teamsArray}));
+        twiml.redirect(
+          generateCallbackURI(
+            context,{
+              phoneNumbers,
+              runFunction: 'leaveAMessage',
+              teamsArray
+            }
+          )
+        );
       } else {
-        twiml.say({voice}, message);
-        twiml.redirect(generateCallbackURI(context, {callerId, firstCall: true, phoneNumbers, runFunction: 'call', teamsArray}));
+        twiml.say(
+          {voice},
+          message
+        );
+        twiml.redirect(
+          generateCallbackURI(
+            context,{
+              callerId,
+              firstCall: true,
+              phoneNumbers,
+              runFunction: 'call',
+              teamsArray
+            }
+          )
+        );
       }
 
       resolve(twiml);
@@ -367,7 +523,10 @@ function buildOnCallList(twiml, context, payload) {
     .catch(err => {
 
       console.log(err);
-      twiml.say({voice}, `${messages.errorGettingPhoneNumbers}`);
+      twiml.say(
+        {voice},
+        `${messages.errorGettingPhoneNumbers}`
+      );
       
       resolve(twiml);
 
@@ -384,7 +543,7 @@ function createEscPolicies(context, teamSlug) {
   const onCallUrl = `https://${API_HOST}/api-public/v1/team/${teamSlug}/oncall/schedule?step=`;
   const arrayOfUrls = [];
 
-  for (var i = 0; i <= 2; i++) {
+  for (let i = 0; i <= 2; i++) {
     arrayOfUrls.push(`${onCallUrl}${i}`);
   }
 
@@ -399,7 +558,10 @@ function getPhoneNumbers(context, escPolicyUrl) {
 
     const {API_HOST, headers} = context;
 
-    got(escPolicyUrl, {headers})
+    got(
+      escPolicyUrl,
+      {headers}
+    )
     .then(response => {
 
       const body = JSON.parse(response.body);
@@ -428,7 +590,10 @@ function getPhoneNumbers(context, escPolicyUrl) {
 
       const randomIndex = Math.floor(Math.random() * onCallArray.length);
 
-      got(`https://${API_HOST}/api-public/v1/user/${onCallArray[randomIndex]}/contact-methods/phones`, {headers})
+      got(
+        `https://${API_HOST}/api-public/v1/user/${onCallArray[randomIndex]}/contact-methods/phones`,
+        {headers}
+      )
       .then(response => {
 
         const body = JSON.parse(response.body);
@@ -436,7 +601,12 @@ function getPhoneNumbers(context, escPolicyUrl) {
         if (body.contactMethods.length === 0) {
           return resolve(false);
         } else {
-          return resolve({phone: body.contactMethods[0].value, user: onCallArray[randomIndex]});
+          return resolve(
+            {
+              phone: body.contactMethods[0].value,
+              user: onCallArray[randomIndex]
+            }
+          );
         }
 
       })
@@ -471,11 +641,17 @@ function call(twiml, context, event, payload) {
     let phoneNumber;
 
     if (DialCallStatus === 'completed') {
-      twiml.say({voice}, `${messages.otherPartyDisconnect} ${messages.goodbye}`);
+      twiml.say(
+        {voice},
+        `${messages.otherPartyDisconnect} ${messages.goodbye}`
+      );
     } else {
 
       if (firstCall !== true) {
-        twiml.say({voice}, `${messages.nextOnCall}`);
+        twiml.say(
+          {voice},
+          `${messages.nextOnCall}`
+        );
       } else {
         realCallerId = From;
       }
@@ -485,14 +661,47 @@ function call(twiml, context, event, payload) {
         detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
         twiml.dial(
           {
-            action: generateCallbackURI(context, {callerId, goToVM, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'leaveAMessage', teamsArray}),
+            action: generateCallbackURI(
+              context,
+              {
+                callerId,
+                goToVM,
+                detailedLog,
+                phoneNumber,
+                phoneNumbers,
+                realCallerId,
+                runFunction: 'leaveAMessage',
+                teamsArray
+              }
+            ),
             callerId
           }
         )
         .number(
           {
-            url: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, runFunction: 'isHuman', teamsArray}),
-            statusCallback: generateCallbackURI(context, {callerId, detailedLog, goToVM, phoneNumber, phoneNumbers, runFunction: 'postToVictorOps', teamsArray}),
+            url: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                phoneNumber,
+                phoneNumbers,
+                runFunction: 'isHuman',
+                teamsArray
+              }
+            ),
+            statusCallback: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                goToVM,
+                phoneNumber,
+                phoneNumbers,
+                runFunction: 'postToVictorOps',
+                teamsArray
+              }
+            ),
             statusCallbackEvent: 'completed'
           },
           phoneNumber.phone
@@ -503,14 +712,47 @@ function call(twiml, context, event, payload) {
         detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
         twiml.dial(
           {
-            action: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'call', teamsArray}),
+            action: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                phoneNumber,
+                phoneNumbers,
+                realCallerId,
+                runFunction: 'call',
+                teamsArray
+              }
+            ),
             callerId
           }
         )
         .number(
           {
-            url: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'isHuman', teamsArray}),
-            statusCallback: generateCallbackURI(context, {callerId, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'postToVictorOps', teamsArray}),
+            url: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                phoneNumber,
+                phoneNumbers,
+                realCallerId,
+                runFunction: 'isHuman',
+                teamsArray
+              }
+            ),
+            statusCallback: generateCallbackURI(
+              context,
+              {
+                callerId, 
+                detailedLog, 
+                phoneNumber, 
+                phoneNumbers, 
+                realCallerId, 
+                runFunction: 'postToVictorOps', 
+                teamsArray
+              }
+            ),
             statusCallbackEvent: 'completed'
           },
           phoneNumber.phone
@@ -535,18 +777,52 @@ function isHuman(twiml, context, event, payload) {
     const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray, voice} = payload;
 
     if (_.isUndefined(Digits)) {
-      twiml.gather({
-        input: 'dtmf',
-        timeout: 5,
-        action: generateCallbackURI(context, {detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'isHuman', teamsArray}),
-        numDigits: 1
-      })
-      .say({voice}, `${messages.pressKeyToConnect}`);
-      twiml.say({voice}, `${messages.noResponse} ${messages.goodbye}`);
+      twiml.gather(
+        {
+          input: 'dtmf',
+          timeout: 5,
+          action: generateCallbackURI(
+            context,
+            {
+              detailedLog,
+              phoneNumber,
+              phoneNumbers,
+              realCallerId,
+              runFunction: 'isHuman',
+              teamsArray
+            }
+          ),
+          numDigits: 1
+        }
+      )
+      .say(
+        {voice},
+        `${messages.pressKeyToConnect}`
+      );
+      twiml.say(
+        {voice},
+        `${messages.noResponse} ${messages.goodbye}`
+      );
       twiml.hangup();
     } else {
-      twiml.say({voice}, `${messages.connected}`);
-      twiml.redirect(generateCallbackURI(context, {callAnsweredByHuman: true, detailedLog, phoneNumber, phoneNumbers, realCallerId, runFunction: 'postToVictorOps', teamsArray}));
+      twiml.say(
+        {voice},
+        `${messages.connected}`
+      );
+      twiml.redirect(
+        generateCallbackURI(
+          context,
+          {
+            callAnsweredByHuman: true,
+            detailedLog,
+            phoneNumber,
+            phoneNumbers,
+            realCallerId,
+            runFunction: 'postToVictorOps',
+            teamsArray
+          }
+        )
+      );
     }
 
     resolve(twiml);
@@ -565,9 +841,15 @@ function leaveAMessage(twiml, context, event, payload) {
     const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice} = payload;
 
     if (DialCallStatus === 'completed') {
-      twiml.say({voice}, `${messages.otherPartyDisconnect} ${messages.goodbye}`);
+      twiml.say(
+        {voice},
+        `${messages.otherPartyDisconnect} ${messages.goodbye}`
+      );
     } else if (sayGoodbye === true) {
-      twiml.say({voice}, `${messages.attemptTranscription} ${messages.goodbye}`);
+      twiml.say(
+        {voice},
+        `${messages.attemptTranscription} ${messages.goodbye}`
+      );
     } else {
       let message = messages.voicemail(teamsArray[0].name);
 
@@ -575,13 +857,36 @@ function leaveAMessage(twiml, context, event, payload) {
         message = `${messages.noAnswer} ${message}`;
       }
 
-      twiml.say({voice}, message);
-      twiml.record({
+      twiml.say(
+        {voice},
+        message
+      );
+      twiml.record(
+        {
           transcribe: true,
-          transcribeCallback: generateCallbackURI(context, {callerId, detailedLog, goToVM, runFunction: 'postToVictorOps', teamsArray}),
+          transcribeCallback: generateCallbackURI(
+            context,
+            {
+              callerId,
+              detailedLog,
+              goToVM,
+              runFunction: 'postToVictorOps',
+              teamsArray
+            }
+          ),
           timeout: 10,
-          action: generateCallbackURI(context, {callerId, detailedLog, runFunction: 'leaveAMessage', sayGoodbye: true, teamsArray})
-        });
+          action: generateCallbackURI(
+            context,
+            {
+              callerId,
+              detailedLog,
+              runFunction: 'leaveAMessage',
+              sayGoodbye: true,
+              teamsArray
+            }
+          )
+        }
+      );
     }
 
     resolve(twiml);
@@ -632,7 +937,8 @@ function postToVictorOps(event, context, payload) {
       return;
     }
 
-    got.post(`https://${ALERT_HOST}/integrations/generic/20131114/alert/${REST_ENDPOINT_API_KEY}/${teamsArray[0].slug}`,
+    got.post(
+      `https://${ALERT_HOST}/integrations/generic/20131114/alert/${REST_ENDPOINT_API_KEY}/${teamsArray[0].slug}`,
       {
         json: true,
         headers: {'Content-Type': 'application/json'},
