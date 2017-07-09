@@ -40,19 +40,35 @@ function handler(context, event, callback) {
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
-    connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`
+    connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
+    voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
+    voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
+    voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
+    voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
+    voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
+    voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`
   }
 
   const {payloadString, To} = event;
-  const payload = _.isUndefined(payloadString) ? {} : JSON.parse(payloadString);
+  const payload = _.isUndefined(payloadString)
+    ? {}
+    : JSON.parse(payloadString);
   const {runFunction} = payload;
   let {ALERT_HOST, API_HOST, voice} = context;
-  context.ALERT_HOST = _.isUndefined(ALERT_HOST) ? 'alert.victorops.com' : ALERT_HOST;
-  context.API_HOST = _.isUndefined(API_HOST) ? 'api.victorops.com' : API_HOST;
+  context.ALERT_HOST = _.isUndefined(ALERT_HOST)
+    ? 'alert.victorops.com'
+    : ALERT_HOST;
+  context.API_HOST = _.isUndefined(API_HOST)
+    ? 'api.victorops.com'
+    : API_HOST;
   context.messages = messages;
-  payload.voice = (voice === 'alice' || voice === 'man') ? voice : 'woman';
+  payload.voice = (voice === 'alice' || voice === 'man')
+    ? voice
+    : 'woman';
   let {callerId} = payload;
-  payload.callerId = _.isUndefined(callerId) ? To : callerId;
+  payload.callerId = _.isUndefined(callerId)
+    ? To
+    : callerId;
 
   let twiml = new Twilio.twiml.VoiceResponse();
 
@@ -590,7 +606,7 @@ function postToVictorOps(event, context, payload) {
 
   return new Promise((resolve, reject) => {
 
-    const {ALERT_HOST, REST_ENDPOINT_API_KEY} = context;
+    const {ALERT_HOST, messages, REST_ENDPOINT_API_KEY} = context;
     const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, phoneNumbers, realCallerId, teamsArray} = payload;
 
@@ -602,19 +618,23 @@ function postToVictorOps(event, context, payload) {
 
     if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
       alert.message_type = 'critical';
-      alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
-      alert.state_message = `Transcribed message from Twilio:\n${TranscriptionText}${detailedLog || ''}`;
+      alert.entity_display_name = goToVM === 'yes'
+        ? messages.voTwilioMessageDirect(teamsArray[0].name)
+        : messages.voTwilioMessageAfter(teamsArray[0].name);
+      alert.state_message = messages.voTwilioTransciption(TranscriptionText, detailedLog);
     } else if (!(_.isUndefined(TranscriptionText))) {
       alert.message_type = 'critical';
-      alert.entity_display_name = goToVM === 'yes' ? `Twilio: message left for the ${teamsArray[0].name} team` : `Twilio: unable to reach on-call for ${teamsArray[0].name}`;
-      alert.state_message = `Twilio was unable to transcribe message.${detailedLog || ''}`;
+      alert.entity_display_name = goToVM === 'yes'
+        ? messages.voTwilioMessageDirect(teamsArray[0].name)
+        : messages.voTwilioMessageAfter(teamsArray[0].name);
+      alert.state_message = messages.voTwilioTransciptionFail(detailedLog);
     } else if (callAnsweredByHuman === 'yes') {
       alert.message_type = 'acknowledgement';
-      alert.state_message = `${phoneNumber.user} answered a call from ${realCallerId}.${detailedLog}`;
+      alert.state_message = messages.voCallAnswered(phoneNumber.user, realCallerId, detailedLog);
       alert.ack_author = phoneNumbers[0].user;
     } else if (CallStatus === 'completed' && TranscriptionStatus !== 'failed') {
       alert.message_type = 'recovery';
-      alert.state_message = `${phoneNumber.user} answered a call from ${realCallerId} that lasted ${CallDuration} seconds.${detailedLog}`;
+      alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
       alert.ack_author = phoneNumbers[0].user;
     } else {
       
