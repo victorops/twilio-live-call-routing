@@ -15,21 +15,21 @@ const twiml = {
 const context = {
   API_HOST: 'api.victorops.com',
   ALERT_HOST: 'alert.victorops.com',
-  API_ID: 'ee36e5d9',
-  API_KEY: 'c441281d680a6508cfc16d47187c5582',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-VO-Api-Key': 'c441281d680a6508cfc16d47187c5582',
-    'X-VO-Api-Id': 'ee36e5d9'
-  },
+  API_ID: process.env.API_ID,
+  API_KEY: process.env.API_KEY,
   messages: {
     voicemail: () => {},
     connecting: () => {}
   },
-  REST_ENDPOINT_API_KEY: '1394aab4-c4e1-4fdb-890b-e40f64e2b35a',
+  REST_ENDPOINT_API_KEY: process.env.REST_ENDPOINT_API_KEY,
   TWILIO_URL: 'string',
   NUMBER_OF_MENUS: '2',
   VOICE: undefined
+};
+context.headers = {
+    'Content-Type': 'application/json',
+    'X-VO-Api-Key': context.API_KEY,
+    'X-VO-Api-Id': context.API_ID
 };
 const event = {payloadString: JSON.stringify({}), To: '+1 444-333-2222'};
 const payload = {
