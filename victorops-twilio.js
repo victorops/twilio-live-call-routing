@@ -20,9 +20,7 @@ module.exports = {
   teamsMenu
 };
 
-
-function handler(context, event, callback) {
-
+function handler (context, event, callback) {
   const messages = {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
     greeting: 'Welcome to Victor Ops Live Call Routing.',
@@ -47,7 +45,7 @@ function handler(context, event, callback) {
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
     voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`
-  }
+  };
 
   const {API_KEY, API_ID} = context;
   const {payloadString, To} = event;
@@ -94,8 +92,7 @@ function handler(context, event, callback) {
 }
 
 
-function requiredConfigsExist(context) {
-
+function requiredConfigsExist (context) {
   const {API_ID, API_KEY, REST_ENDPOINT_API_KEY, TWILIO_URL} = context;
 
   if (
@@ -104,20 +101,13 @@ function requiredConfigsExist(context) {
     _.isUndefined(REST_ENDPOINT_API_KEY) ||
     _.isUndefined(TWILIO_URL)
   ) {
-
     return false;
-
   } else {
-
     return true;
-
   }
-
 }
 
-
-function main(twiml, context, event, payload) {
-
+function main (twiml, context, event, payload) {
   const {NUMBER_OF_MENUS} = context;
   const {runFunction} = payload;
 
@@ -156,17 +146,13 @@ function main(twiml, context, event, payload) {
       return postToVictorOps(event, context, payload);
       break;
     default:
-      return new Promise((resolve, reject) => reject('No function was called.'));
+      return new Promise((resolve, reject) => reject(new Error('No function was called.')));
       break;
   }
-
 }
 
-
-function callOrMessage(twiml, context, payload) {
-
+function callOrMessage (twiml, context, payload) {
   return new Promise((resolve, reject) => {
-
     const {messages} = context;
     const {callerId, voice} = payload;
 
@@ -193,28 +179,20 @@ function callOrMessage(twiml, context, payload) {
       {voice},
       `${messages.noResponse} ${messages.goodbye}`
     );
-    
+
     resolve(twiml);
-
   });
-
 }
 
-
-function generateCallbackURI(context, json) {
-
+function generateCallbackURI (context, json) {
   const {TWILIO_URL} = context;
   const payloadString = JSON.stringify(json);
 
   return `${TWILIO_URL}/victorops?${qs.stringify({payloadString})}`;
-
 }
 
-
-function teamsMenu(twiml, context, event, payload) {
-
+function teamsMenu (twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
-
     const {API_HOST, headers, messages, NUMBER_OF_MENUS} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
@@ -230,7 +208,6 @@ function teamsMenu(twiml, context, event, payload) {
       );
 
       resolve(twiml);
-
     } else if (fromCallorMessage === true && Digits !== 1 && Digits !== 2) {
       twiml.say(
         {voice},
@@ -244,15 +221,12 @@ function teamsMenu(twiml, context, event, payload) {
       );
 
       resolve(twiml);
-
     } else {
-
       got(
         `https://${API_HOST}/api-public/v1/team`,
         {headers}
       )
       .then(response => {
-
         let teamsArray;
 
         if (Digits === 2) {
@@ -262,12 +236,10 @@ function teamsMenu(twiml, context, event, payload) {
         if (_.isEmpty(buildManualTeamList(context))) {
           teamsArray = JSON.parse(response.body)
           .map(team => {
-
             return {
               name: team.name,
               slug: team.slug
             };
-
           });
         } else {
           teamsArray = buildManualTeamList(context);
@@ -329,34 +301,25 @@ function teamsMenu(twiml, context, event, payload) {
         }
 
         resolve(twiml);
-
       })
       .catch(err => {
-
         console.log(err);
         twiml.say(
           {voice},
           `${messages.noTeamsError} ${messages.goodbye}`
         );
-        
+
         resolve(twiml);
-
       });
-
     }
-
   });
-
 }
 
-
-function buildManualTeamList(context) {
-
+function buildManualTeamList (context) {
   const arrayOfTeams = [];
 
   Object.keys(context).forEach((key) => {
-
-    if (key.substring(0,4).toLowerCase() === 'team') {
+    if (key.substring(0, 4).toLowerCase() === 'team') {
       const name = context[key];
       const slug = context[key].toLowerCase().replace(/[^a-z0-9-~_]/g, '-');
 
@@ -367,18 +330,13 @@ function buildManualTeamList(context) {
         }
       );
     }
-
   });
 
   return arrayOfTeams;
-
 }
 
-
-function assignTeam(twiml, context, event, payload) {
-
+function assignTeam (twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
-
     const {messages} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
@@ -395,7 +353,7 @@ function assignTeam(twiml, context, event, payload) {
           }
         )
       );
-    } else if (Digits === NaN) {
+    } else if (isNaN(Digits)) {
       twiml.say(
         {voice},
         `${messages.invalidResponse} ${messages.goodbye}`
@@ -404,7 +362,6 @@ function assignTeam(twiml, context, event, payload) {
       let {teamsArray} = payload;
 
       if (goToVM === true) {
-
         if (teamsArray.length === 1) {
           twiml.redirect(
             generateCallbackURI(
@@ -436,7 +393,6 @@ function assignTeam(twiml, context, event, payload) {
             `${messages.invalidResponse} ${messages.goodbye}`
           );
         }
-
       } else if (teamsArray.length === 1) {
         twiml.redirect(
           generateCallbackURI(
@@ -468,20 +424,14 @@ function assignTeam(twiml, context, event, payload) {
           `${messages.invalidResponse} ${messages.goodbye}`
         );
       }
-
     }
 
     resolve(twiml);
-
   });
-
 }
 
-
-function buildOnCallList(twiml, context, payload) {
-
+function buildOnCallList (twiml, context, payload) {
   return new Promise((resolve, reject) => {
-
     const {messages, NUMBER_OF_MENUS} = context;
     const {callerId, teamsArray, voice} = payload;
 
@@ -490,7 +440,6 @@ function buildOnCallList(twiml, context, payload) {
 
     Promise.all(phoneNumberArray)
     .then(phoneNumbers => {
-
       phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== false);
 
       let message = messages.connecting(teamsArray[0].name);
@@ -502,7 +451,8 @@ function buildOnCallList(twiml, context, payload) {
       if (phoneNumbers.length === 0) {
         twiml.redirect(
           generateCallbackURI(
-            context,{
+            context,
+            {
               phoneNumbers,
               runFunction: 'leaveAMessage',
               teamsArray
@@ -516,7 +466,8 @@ function buildOnCallList(twiml, context, payload) {
         );
         twiml.redirect(
           generateCallbackURI(
-            context,{
+            context,
+            {
               callerId,
               firstCall: true,
               phoneNumbers,
@@ -528,27 +479,20 @@ function buildOnCallList(twiml, context, payload) {
       }
 
       resolve(twiml);
-
     })
     .catch(err => {
-
       console.log(err);
       twiml.say(
         {voice},
         `${messages.errorGettingPhoneNumbers}`
       );
-      
+
       resolve(twiml);
-
     });
-
   });
-
 }
 
-
-function createEscPolicies(context, teamSlug) {
-
+function createEscPolicies (context, teamSlug) {
   const {API_HOST} = context;
   const onCallUrl = `https://${API_HOST}/api-public/v1/team/${teamSlug}/oncall/schedule?step=`;
   const arrayOfUrls = [];
@@ -558,14 +502,10 @@ function createEscPolicies(context, teamSlug) {
   }
 
   return arrayOfUrls;
-
 }
 
-
-function getPhoneNumbers(context, escPolicyUrl) {
-
+function getPhoneNumbers (context, escPolicyUrl) {
   return new Promise((resolve, reject) => {
-
     const {API_HOST, headers} = context;
 
     got(
@@ -573,31 +513,22 @@ function getPhoneNumbers(context, escPolicyUrl) {
       {headers}
     )
     .then(response => {
-
       const body = JSON.parse(response.body);
       const {schedule} = body;
       const onCallArray = [];
 
       schedule.forEach((rotation, i, array) => {
-
-        let user;
-
         if (!(_.isUndefined(rotation.onCall))) {
-
           if (!(_.isUndefined(rotation.overrideOnCall))) {
             onCallArray.push(rotation.overrideOnCall);
           } else {
             onCallArray.push(rotation.onCall);
           }
-
         }
-        
       });
 
       if (onCallArray.length === 0) {
-
         return resolve(false);
-
       }
 
       const randomIndex = Math.floor(Math.random() * onCallArray.length);
@@ -607,52 +538,36 @@ function getPhoneNumbers(context, escPolicyUrl) {
         {headers}
       )
       .then(response => {
-
         const body = JSON.parse(response.body);
 
         if (body.contactMethods.length === 0) {
-
           return resolve(false);
-
         } else {
-
           return resolve(
             {
               phone: body.contactMethods[0].value,
               user: onCallArray[randomIndex]
             }
           );
-
         }
-
       })
       .catch(err => {
-
         console.log('err', err);
 
         return reject(err);
-
       });
-                  
     })
     .catch(err => {
-
       console.log(err);
 
       return reject(err);
-
     });
-
   });
-
 }
 
-
-function call(twiml, context, event, payload) {
-
+function call (twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
-
-    const {messages, TWILIO_URL} = context;
+    const {messages} = context;
     const {DialCallStatus, From} = event;
     const {callerId, firstCall, goToVM, phoneNumbers, teamsArray, voice} = payload;
     let {detailedLog, realCallerId} = payload;
@@ -664,7 +579,6 @@ function call(twiml, context, event, payload) {
         `${messages.otherPartyDisconnect} ${messages.goodbye}`
       );
     } else {
-
       if (firstCall !== true) {
         twiml.say(
           {voice},
@@ -762,12 +676,12 @@ function call(twiml, context, event, payload) {
             statusCallback: generateCallbackURI(
               context,
               {
-                callerId, 
-                detailedLog, 
-                phoneNumber, 
-                phoneNumbers, 
-                realCallerId, 
-                runFunction: 'postToVictorOps', 
+                callerId,
+                detailedLog,
+                phoneNumber,
+                phoneNumbers,
+                realCallerId,
+                runFunction: 'postToVictorOps',
                 teamsArray
               }
             ),
@@ -776,21 +690,15 @@ function call(twiml, context, event, payload) {
           phoneNumber.phone
         );
       }
-
     }
 
     resolve(twiml);
-
   });
-
 }
 
-
-function isHuman(twiml, context, event, payload) {
-
+function isHuman (twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
-
-    const {messages, TWILIO_URL} = context;
+    const {messages} = context;
     const {Digits} = event;
     const {detailedLog, phoneNumber, phoneNumbers, realCallerId, teamsArray, voice} = payload;
 
@@ -844,16 +752,11 @@ function isHuman(twiml, context, event, payload) {
     }
 
     resolve(twiml);
-
   });
-
 }
 
-
-function leaveAMessage(twiml, context, event, payload) {
-
+function leaveAMessage (twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
-
     const {messages} = context;
     const {DialCallStatus} = event;
     const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice} = payload;
@@ -908,16 +811,11 @@ function leaveAMessage(twiml, context, event, payload) {
     }
 
     resolve(twiml);
-
   });
-
 }
 
-
-function postToVictorOps(event, context, payload) {
-
+function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
-
     const {ALERT_HOST, messages, REST_ENDPOINT_API_KEY} = context;
     const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, phoneNumbers, realCallerId, teamsArray} = payload;
@@ -949,11 +847,9 @@ function postToVictorOps(event, context, payload) {
       alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
       alert.ack_author = phoneNumbers[0].user;
     } else {
-      
       resolve('');
-      
-      return;
 
+      return;
     }
 
     got.post(
@@ -965,18 +861,12 @@ function postToVictorOps(event, context, payload) {
       }
     )
     .then(response => {
-
       resolve('');
-
     })
     .catch(err => {
-
       console.log(err);
-      
+
       resolve('');
-
     });
-
   });
-
 }
