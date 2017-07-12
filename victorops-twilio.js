@@ -48,14 +48,13 @@ function handler (context, event, callback) {
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
     voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`
   };
-
   const {API_KEY, API_ID} = context;
   const {payloadString, To} = event;
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
   const {runFunction} = payload;
-  let {ALERT_HOST, API_HOST, voice} = context;
+  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
     : ALERT_HOST;
@@ -68,6 +67,15 @@ function handler (context, event, callback) {
     'X-VO-Api-Key': API_KEY,
     'X-VO-Api-Id': API_ID
   };
+  switch (NUMBER_OF_MENUS) {
+    case '1':
+      break;
+    case '2':
+      break;
+    default:
+      context.NUMBER_OF_MENUS = '0';
+      break;
+  }
   // Add 'voice' key in Twilio config to change how Twilio sounds [default = 'woman', 'man', 'alice']
   payload.voice = (voice === 'alice' || voice === 'man')
     ? voice
@@ -116,12 +124,14 @@ function main (twiml, context, event, payload) {
 
   if (_.isUndefined(runFunction)) {
     switch (NUMBER_OF_MENUS) {
-      case '0':
       case '1':
         return teamsMenu(twiml, context, event, payload);
         break;
-      default:
+      case '2':
         return callOrMessage(twiml, context, payload);
+        break;
+      default:
+        return teamsMenu(twiml, context, event, payload);
         break;
     }
   }
