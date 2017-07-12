@@ -350,7 +350,7 @@ function buildManualTeamList (context) {
       const name = context[key];
       const slug = context[key].toLowerCase().replace(/[^a-z0-9-~_]/g, '-');
 
-      arrayOfTeams.push(
+      arrayOfTeams.unshift(
         {
           name,
           slug
