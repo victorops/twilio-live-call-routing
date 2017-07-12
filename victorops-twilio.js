@@ -274,10 +274,12 @@ function teamsMenu (twiml, context, event, payload) {
         // Automatically moves on to next step if there is only one team
         } else if (teamsArray.length === 1 || NUMBER_OF_MENUS === '0') {
           teamsArray = [teamsArray[0]];
+          const autoTeam = true;
           twiml.redirect(
             generateCallbackURI(
               context,
               {
+                autoTeam,
                 callerId,
                 goToVM,
                 runFunction: 'assignTeam',
@@ -366,7 +368,7 @@ function assignTeam (twiml, context, event, payload) {
     const {messages} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
-    const {callerId, goToVM, voice} = payload;
+    const {autoTeam, callerId, goToVM, voice} = payload;
 
     // Repeats the teams menu if caller pressed 0
     if (Digits === 0) {
@@ -381,7 +383,7 @@ function assignTeam (twiml, context, event, payload) {
         )
       );
     // If caller enters an invalid selection, the call ends
-    } else if (isNaN(Digits)) {
+    } else if (isNaN(Digits) && autoTeam !== true) {
       twiml.say(
         {voice},
         `${messages.invalidResponse} ${messages.goodbye}`
