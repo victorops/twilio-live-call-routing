@@ -104,7 +104,6 @@ function handler (context, event, callback) {
 // Checks that all required configuration values have been entered in Twilio configure
 function requiredConfigsExist (context) {
   const {API_ID, API_KEY, REST_ENDPOINT_API_KEY, TWILIO_URL} = context;
-
   if (
     _.isUndefined(API_ID) ||
     _.isUndefined(API_KEY) ||
@@ -121,6 +120,7 @@ function requiredConfigsExist (context) {
 function main (twiml, context, event, payload) {
   const {NUMBER_OF_MENUS} = context;
   const {runFunction} = payload;
+
 
   if (_.isUndefined(runFunction)) {
     switch (NUMBER_OF_MENUS) {
@@ -164,8 +164,16 @@ function main (twiml, context, event, payload) {
   }
 }
 
+// Wrapper that prevents logging while running local test
+function log (string, content) {
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(string, content);
+  }
+}
+
 // Menu to choose to reach someone on-call or leave a message
 function callOrMessage (twiml, context, payload) {
+  log('callOrMessage', payload);
   return new Promise((resolve, reject) => {
     const {messages} = context;
     const {callerId, voice} = payload;
@@ -208,6 +216,7 @@ function generateCallbackURI (context, json) {
 
 // Menu to select team to contact for on-call or leaving a message
 function teamsMenu (twiml, context, event, payload) {
+  log('teamsMenu', event);
   return new Promise((resolve, reject) => {
     const {API_HOST, headers, messages, NUMBER_OF_MENUS} = context;
     let {Digits} = event;
@@ -343,6 +352,7 @@ function teamsMenu (twiml, context, event, payload) {
 
 // Creates a list of teams for the teamsMenu if there are any keys that begin with 'TEAM' in Twilio configure
 function buildManualTeamList (context) {
+  log('buildManualTeamsList', context);
   const arrayOfTeams = [];
 
   Object.keys(context).forEach((key) => {
@@ -364,6 +374,7 @@ function buildManualTeamList (context) {
 
 // Handles the caller's input and chooses the appropriate team
 function assignTeam (twiml, context, event, payload) {
+  log('assignTeam', event);
   return new Promise((resolve, reject) => {
     const {messages} = context;
     let {Digits} = event;
@@ -467,17 +478,19 @@ function assignTeam (twiml, context, event, payload) {
 
 // Generates a list of people on-call and their phone numbers
 function buildOnCallList (twiml, context, payload) {
+  log('buildOnCallList', payload);
   return new Promise((resolve, reject) => {
     const {messages, NUMBER_OF_MENUS} = context;
     const {callerId, teamsArray, voice} = payload;
 
     // Creates a list of phone numbers based on the first 3 escalation policies
-    const escPolicyUrlArray = createEscPolicies(context, teamsArray[0].slug);
+    const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
     const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url));
 
     Promise.all(phoneNumberArray)
     .then(phoneNumbers => {
       phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== false);
+      log('phoneNumbers', phoneNumbers);
 
       let message = messages.connecting(teamsArray[0].name);
 
@@ -533,7 +546,8 @@ function buildOnCallList (twiml, context, payload) {
 }
 
 // Helper function that generates a list of URI's from which to request data from VictorOps with
-function createEscPolicies (context, teamSlug) {
+function createEscPolicyUrls (context, teamSlug) {
+  log('createEscPolicyUrls', teamSlug);
   const {API_HOST} = context;
   const onCallUrl = `https://${API_HOST}/api-public/v1/team/${teamSlug}/oncall/schedule?step=`;
   const arrayOfUrls = [];
@@ -610,6 +624,7 @@ function getPhoneNumbers (context, escPolicyUrl) {
 
 // Connects caller to people on-call and builds a log of calls made
 function call (twiml, context, event, payload) {
+  log('call', event);
   return new Promise((resolve, reject) => {
     const {messages} = context;
     const {DialCallStatus, From} = event;
@@ -745,6 +760,7 @@ function call (twiml, context, event, payload) {
 
 // Asks called party for an input when they pick up the phone to differentiate between human and voicemail
 function isHuman (twiml, context, event, payload) {
+  log('isHuman', event);
   return new Promise((resolve, reject) => {
     const {messages} = context;
     const {Digits} = event;
@@ -805,6 +821,7 @@ function isHuman (twiml, context, event, payload) {
 
 // Records caller's message and transcribes it
 function leaveAMessage (twiml, context, event, payload) {
+  log('leaveAMessage', event);
   return new Promise((resolve, reject) => {
     const {messages} = context;
     const {DialCallStatus} = event;
@@ -909,6 +926,8 @@ function postToVictorOps (event, context, payload) {
 
       return;
     }
+
+    log('postToVictorOps', event);
 
     got.post(
       `https://${ALERT_HOST}/integrations/generic/20131114/alert/${REST_ENDPOINT_API_KEY}/${teamsArray[0].slug}`,

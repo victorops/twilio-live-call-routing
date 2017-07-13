@@ -1,3 +1,7 @@
+// Set environment variables API_ID, API_KEY, and REST_ENDPOINT_API_KEY,
+// then run 'npm test' from the application directory to execute tests
+process.env.NODE_ENV = 'test';
+
 const chai = require('chai');
 const mocha = require('mocha');
 const app = require('../victorops-twilio');
