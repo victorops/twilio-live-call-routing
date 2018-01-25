@@ -46,7 +46,8 @@ function handler (context, event, callback) {
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
-    voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`
+    voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`,
+    noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
   };
   const {VICTOROPS_API_KEY, VICTOROPS_API_ID} = context;
   const {payloadString, To} = event;
@@ -270,7 +271,24 @@ function teamsMenu (twiml, context, event, payload) {
             };
           });
         } else {
-          teamsArray = buildManualTeamList(context);
+          teamsArray = buildManualTeamList(context)
+          .map(team => {
+            const lookupResult = lookupTeamSlug(team.name, JSON.parse(response.body))
+
+            if (lookupResult.teamExists) {
+              return {
+                name: team.name
+                slug: lookupResult.slug
+              };
+            } else {
+              twiml.say(
+                {voice},
+                `${messages.noTeam} ${messages.goodbye}`
+              );
+
+              resolve(twiml);
+            }
+          });
         }
 
         // An error message is read and the call ends if there are no teams available
@@ -357,18 +375,32 @@ function buildManualTeamList (context) {
   Object.keys(context).forEach((key) => {
     if (key.substring(0, 4).toLowerCase() === 'team') {
       const name = context[key];
-      const slug = context[key].toLowerCase().replace(/[^a-z0-9-~_]/g, '-');
 
       arrayOfTeams.unshift(
         {
-          name,
-          slug
+          name
         }
       );
     }
   });
 
   return arrayOfTeams;
+}
+
+function lookupTeamSlug (teamName, teamList) {
+  teamList.forEach((team) => {
+    if (team.name === teamName) {
+      return {
+        teamExists: true,
+        slug: team.slug
+      };
+    }
+  });
+
+  return {
+    teamExists: false,
+    name: teamName
+  };
 }
 
 // Handles the caller's input and chooses the appropriate team
@@ -933,7 +965,7 @@ function postToVictorOps (event, context, payload) {
       {
         json: true,
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(alert)
+        body: alert
       }
     )
     .then(response => {
