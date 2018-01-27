@@ -254,7 +254,7 @@ function teamsMenu (twiml, context, event, payload) {
         {headers}
       )
       .then(response => {
-        let teamsArray;
+        let teamsArray, teamLookupFail = false;
 
         if (Digits === 2) {
           goToVM = true;
@@ -277,18 +277,23 @@ function teamsMenu (twiml, context, event, payload) {
 
             if (lookupResult.teamExists) {
               return {
-                name: team.name
+                name: team.name,
                 slug: lookupResult.slug
               };
             } else {
+              teamLookupFail = true;
               twiml.say(
                 {voice},
-                `${messages.noTeam} ${messages.goodbye}`
+                `${messages.noTeam(team.name)} ${messages.goodbye}`
               );
 
               resolve(twiml);
             }
           });
+        }
+
+        if (teamLookupFail) {
+          return;
         }
 
         // An error message is read and the call ends if there are no teams available
@@ -387,15 +392,16 @@ function buildManualTeamList (context) {
   return arrayOfTeams;
 }
 
+// Gets the team slug for a team if it exists
 function lookupTeamSlug (teamName, teamList) {
-  teamList.forEach((team) => {
+  for (team of teamList) {
     if (team.name === teamName) {
       return {
         teamExists: true,
         slug: team.slug
       };
     }
-  });
+  }
 
   return {
     teamExists: false,
