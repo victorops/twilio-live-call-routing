@@ -971,7 +971,7 @@ function postToVictorOps (event, context, payload) {
       {
         json: true,
         headers: {'Content-Type': 'application/json'},
-        body: alert
+        body: JSON.stringify(alert)
       }
     )
     .then(response => {
