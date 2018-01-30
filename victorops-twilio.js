@@ -54,7 +54,6 @@ function handler (context, event, callback) {
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
-  const {runFunction} = payload;
   let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
@@ -121,46 +120,34 @@ function main (twiml, context, event, payload) {
   const {NUMBER_OF_MENUS} = context;
   const {runFunction} = payload;
 
-
   if (_.isUndefined(runFunction)) {
     switch (NUMBER_OF_MENUS) {
       case '1':
         return teamsMenu(twiml, context, event, payload);
-        break;
       case '2':
         return callOrMessage(twiml, context, payload);
-        break;
       default:
         return teamsMenu(twiml, context, event, payload);
-        break;
     }
   }
 
   switch (runFunction) {
     case 'teamsMenu':
       return teamsMenu(twiml, context, event, payload);
-      break;
     case 'assignTeam':
       return assignTeam(twiml, context, event, payload);
-      break;
     case 'buildOnCallList':
       return buildOnCallList(twiml, context, payload);
-      break;
     case 'call':
       return call(twiml, context, event, payload);
-      break;
     case 'isHuman':
       return isHuman(twiml, context, event, payload);
-      break;
     case 'leaveAMessage':
       return leaveAMessage(twiml, context, event, payload);
-      break;
     case 'postToVictorOps':
       return postToVictorOps(event, context, payload);
-      break;
     default:
       return new Promise((resolve, reject) => reject(new Error('No function was called.')));
-      break;
   }
 }
 
@@ -254,7 +241,8 @@ function teamsMenu (twiml, context, event, payload) {
         {headers}
       )
       .then(response => {
-        let teamsArray, teamLookupFail = false;
+        let teamsArray;
+        let teamLookupFail = false;
 
         if (Digits === 2) {
           goToVM = true;
@@ -273,7 +261,7 @@ function teamsMenu (twiml, context, event, payload) {
         } else {
           teamsArray = buildManualTeamList(context)
           .map(team => {
-            const lookupResult = lookupTeamSlug(team.name, JSON.parse(response.body))
+            const lookupResult = lookupTeamSlug(team.name, JSON.parse(response.body));
 
             if (lookupResult.teamExists) {
               return {
@@ -625,15 +613,15 @@ function getPhoneNumbers (context, escPolicyUrl, teamName) {
 
       // Get the specified escalation policy or get the first one if none is specified
       if (escPolicyAssigned) {
-        schedule = setSchedule(schedules, escPolicyName, teamName)
+        schedule = setSchedule(schedules, escPolicyName, teamName);
       } else if (schedules.length > 0) {
-        schedule = schedules[0].schedule
+        schedule = schedules[0].schedule;
       } else {
         schedule = false;
       }
 
       if (schedule === false) {
-        return resolve(false)
+        return resolve(false);
       }
 
       schedule.forEach((rotation, i, array) => {
@@ -900,7 +888,7 @@ function leaveAMessage (twiml, context, event, payload) {
     const {DialCallStatus} = event;
     const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice} = payload;
 
-    // Caller was connected to on-call person and call completed 
+    // Caller was connected to on-call person and call completed
     if (DialCallStatus === 'completed') {
       twiml.say(
         {voice},
