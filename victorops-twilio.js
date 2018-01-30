@@ -34,7 +34,7 @@ function handler (context, event, callback) {
     noTeamsError: 'There was an error retrieving the list of teams for your organization.',
     otherPartyDisconnect: 'The other party has disconnected.',
     attemptTranscription: 'Twilio will attempt to transcribe your message and create an incident in Victor Ops.',
-    pressKeyToConnect: 'This is Victor Ops Live Call Routing. Press any key to connect.',
+    pressKeyToConnect: 'This is Victor Ops Live Call Routing. Press any number to connect.',
     errorGettingPhoneNumbers: 'There was an error retrieving the on-call phone numbers. Please try again.',
     nextOnCall: 'Trying next on-call representative.',
     connected: 'You are now connected.',
@@ -91,7 +91,7 @@ function handler (context, event, callback) {
   if (requiredConfigsExist(context)) {
     main(twiml, context, event, payload)
     .then(result => callback(null, result))
-    .catch(err => console.log(err));
+    .catch(err => log(err));
   } else {
     twiml.say(
       {voice: payload.voice},
@@ -360,7 +360,7 @@ function teamsMenu (twiml, context, event, payload) {
         resolve(twiml);
       })
       .catch(err => {
-        console.log(err);
+        log(err);
         twiml.say(
           {voice},
           `${messages.noTeamsError} ${messages.goodbye}`
@@ -394,7 +394,7 @@ function buildManualTeamList (context) {
 
 // Gets the team slug for a team if it exists
 function lookupTeamSlug (teamName, teamList) {
-  for (team of teamList) {
+  for (let team of teamList) {
     if (team.name === teamName) {
       return {
         teamExists: true,
@@ -522,7 +522,7 @@ function buildOnCallList (twiml, context, payload) {
 
     // Creates a list of phone numbers based on the first 3 escalation policies
     const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
-    const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url));
+    const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url, teamsArray[0].name));
 
     Promise.all(phoneNumberArray)
     .then(phoneNumbers => {
@@ -571,7 +571,7 @@ function buildOnCallList (twiml, context, payload) {
       resolve(twiml);
     })
     .catch(err => {
-      console.log(err);
+      log(err);
       twiml.say(
         {voice},
         `${messages.errorGettingPhoneNumbers}`
@@ -586,7 +586,7 @@ function buildOnCallList (twiml, context, payload) {
 function createEscPolicyUrls (context, teamSlug) {
   log('createEscPolicyUrls', teamSlug);
   const {API_HOST} = context;
-  const onCallUrl = `https://${API_HOST}/api-public/v1/team/${teamSlug}/oncall/schedule?step=`;
+  const onCallUrl = `https://${API_HOST}/api-public/v2/team/${teamSlug}/oncall/schedule?step=`;
   const arrayOfUrls = [];
 
   for (let i = 0; i <= 2; i++) {
@@ -598,7 +598,7 @@ function createEscPolicyUrls (context, teamSlug) {
 
 // Generates a list of phone numbers
 // Randomly picks on person if there is more than one person on-call for an escalation policy
-function getPhoneNumbers (context, escPolicyUrl) {
+function getPhoneNumbers (context, escPolicyUrl, teamName) {
   return new Promise((resolve, reject) => {
     const {API_HOST, headers} = context;
 
@@ -608,15 +608,40 @@ function getPhoneNumbers (context, escPolicyUrl) {
     )
     .then(response => {
       const body = JSON.parse(response.body);
-      const {schedule} = body;
+      const {schedules} = body;
       const onCallArray = [];
+      const escPolicyLookup = `ESC_POL-${teamName}`;
+      let escPolicyAssigned;
+      let escPolicyName;
+      let schedule;
+
+      // Check if an escalation policy has been specified in the Twilio UI
+      if (!(_.isUndefined(context[escPolicyLookup]))) {
+        escPolicyAssigned = true;
+        escPolicyName = context[escPolicyLookup];
+      } else {
+        escPolicyAssigned = false;
+      }
+
+      // Get the specified escalation policy or get the first one if none is specified
+      if (escPolicyAssigned) {
+        schedule = setSchedule(schedules, escPolicyName, teamName)
+      } else if (schedules.length > 0) {
+        schedule = schedules[0].schedule
+      } else {
+        schedule = false;
+      }
+
+      if (schedule === false) {
+        return resolve(false)
+      }
 
       schedule.forEach((rotation, i, array) => {
-        if (!(_.isUndefined(rotation.onCall))) {
-          if (!(_.isUndefined(rotation.overrideOnCall))) {
-            onCallArray.push(rotation.overrideOnCall);
+        if (!(_.isUndefined(rotation.onCallUser))) {
+          if (!(_.isUndefined(rotation.overrideOnCallUser))) {
+            onCallArray.push(rotation.overrideOnCallUser.username);
           } else {
-            onCallArray.push(rotation.onCall);
+            onCallArray.push(rotation.onCallUser.username);
           }
         }
       });
@@ -646,17 +671,28 @@ function getPhoneNumbers (context, escPolicyUrl) {
         }
       })
       .catch(err => {
-        console.log('err', err);
+        log(err);
 
         return reject(err);
       });
     })
     .catch(err => {
-      console.log(err);
+      log(err);
 
       return reject(err);
     });
   });
+}
+
+// Helper function that returns the schedule object a valid escalation policy is configured in the Twilio UI
+function setSchedule (schedulesArray, escPolicyName, teamName) {
+  for (let schedule in schedulesArray) {
+    if (schedulesArray[schedule].policy.name === escPolicyName) {
+      return schedulesArray[schedule].schedule;
+    }
+  }
+
+  return false;
 }
 
 // Connects caller to people on-call and builds a log of calls made
@@ -978,7 +1014,7 @@ function postToVictorOps (event, context, payload) {
       resolve('');
     })
     .catch(err => {
-      console.log(err);
+      log(err);
 
       resolve('');
     });
