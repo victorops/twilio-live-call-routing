@@ -90,7 +90,7 @@ function handler (context, event, callback) {
   if (requiredConfigsExist(context)) {
     main(twiml, context, event, payload)
     .then(result => callback(null, result))
-    .catch(err => log(err));
+    .catch(err => console.log(err));
   } else {
     twiml.say(
       {voice: payload.voice},
@@ -348,7 +348,7 @@ function teamsMenu (twiml, context, event, payload) {
         resolve(twiml);
       })
       .catch(err => {
-        log(err);
+        console.log(err);
         twiml.say(
           {voice},
           `${messages.noTeamsError} ${messages.goodbye}`
@@ -559,7 +559,7 @@ function buildOnCallList (twiml, context, payload) {
       resolve(twiml);
     })
     .catch(err => {
-      log(err);
+      console.log(err);
       twiml.say(
         {voice},
         `${messages.errorGettingPhoneNumbers}`
@@ -659,21 +659,21 @@ function getPhoneNumbers (context, escPolicyUrl, teamName) {
         }
       })
       .catch(err => {
-        log(err);
+        console.log(err);
 
         return reject(err);
       });
     })
     .catch(err => {
-      log(err);
+      console.log(err);
 
       return reject(err);
     });
   });
 }
 
-// Helper function that returns the schedule object a valid escalation policy is configured in the Twilio UI
-function setSchedule (schedulesArray, escPolicyName, teamName) {
+// Helper function that returns the schedule object if a valid escalation policy is configured in the Twilio UI
+function setSchedule (schedulesArray, escPolicyName) {
   for (let schedule in schedulesArray) {
     if (schedulesArray[schedule].policy.name === escPolicyName) {
       return schedulesArray[schedule].schedule;
@@ -1002,7 +1002,7 @@ function postToVictorOps (event, context, payload) {
       resolve('');
     })
     .catch(err => {
-      log(err);
+      console.log(err);
 
       resolve('');
     });
