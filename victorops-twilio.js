@@ -972,16 +972,16 @@ function postToVictorOps (event, context, payload) {
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciptionFail(detailedLog);
-    // Create an 'Acknowledment' alert in VictorOps when caller is connected with on-call person
+    // Create an 'Acknowledgement' alert in VictorOps when caller is connected with on-call person
     } else if (callAnsweredByHuman === true) {
       alert.message_type = 'acknowledgement';
       alert.state_message = messages.voCallAnswered(phoneNumber.user, realCallerId, detailedLog);
-      alert.ack_author = phoneNumbers[0].user;
+      alert.ack_author = phoneNumber.user;
     // Create a 'Recovery' alert in VictorOps when caller and on-call person complete their call
     } else if (CallStatus === 'completed' && TranscriptionStatus !== 'failed') {
       alert.message_type = 'recovery';
       alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
-      alert.ack_author = phoneNumbers[0].user;
+      alert.ack_author = phoneNumber.user;
     } else {
       resolve('');
 
