@@ -369,7 +369,7 @@ function buildManualTeamList (context) {
   Object.keys(context).forEach((key) => {
     if (key.substring(0, 4).toLowerCase() === 'team') {
       const name = context[key];
-      let keyId = key.substring(4);
+      const keyId = key.substring(4);
       let escPolicyName;
 
       Object.keys(context).forEach((key) => {
