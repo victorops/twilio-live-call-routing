@@ -266,7 +266,8 @@ function teamsMenu (twiml, context, event, payload) {
             if (lookupResult.teamExists) {
               return {
                 name: team.name,
-                slug: lookupResult.slug
+                slug: lookupResult.slug,
+                escPolicyName: team.escPolicyName
               };
             } else {
               teamLookupFail = true;
@@ -368,10 +369,19 @@ function buildManualTeamList (context) {
   Object.keys(context).forEach((key) => {
     if (key.substring(0, 4).toLowerCase() === 'team') {
       const name = context[key];
+      const keyId = key.substring(4);
+      let escPolicyName;
+
+      Object.keys(context).forEach((key) => {
+        if (key.substring(0, 7).toLowerCase() === 'esc_pol' && key.substring(7) === keyId) {
+          escPolicyName = context[key];
+        }
+      });
 
       arrayOfTeams.unshift(
         {
-          name
+          name,
+          escPolicyName
         }
       );
     }
@@ -510,7 +520,7 @@ function buildOnCallList (twiml, context, payload) {
 
     // Creates a list of phone numbers based on the first 3 escalation policies
     const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
-    const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url, teamsArray[0].name));
+    const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url, teamsArray[0].name, teamsArray[0].escPolicyName));
 
     Promise.all(phoneNumberArray)
     .then(phoneNumbers => {
@@ -586,7 +596,7 @@ function createEscPolicyUrls (context, teamSlug) {
 
 // Generates a list of phone numbers
 // Randomly picks on person if there is more than one person on-call for an escalation policy
-function getPhoneNumbers (context, escPolicyUrl, teamName) {
+function getPhoneNumbers (context, escPolicyUrl, teamName, escPolicyName) {
   return new Promise((resolve, reject) => {
     const {API_HOST, headers} = context;
 
@@ -598,15 +608,13 @@ function getPhoneNumbers (context, escPolicyUrl, teamName) {
       const body = JSON.parse(response.body);
       const {schedules} = body;
       const onCallArray = [];
-      const escPolicyLookup = `ESC_POL-${teamName}`;
       let escPolicyAssigned;
       let escPolicyName;
       let schedule;
 
       // Check if an escalation policy has been specified in the Twilio UI
-      if (!(_.isUndefined(context[escPolicyLookup]))) {
+      if (!(_.isUndefined(escPolicyName))) {
         escPolicyAssigned = true;
-        escPolicyName = context[escPolicyLookup];
       } else {
         escPolicyAssigned = false;
       }
@@ -950,7 +958,7 @@ function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
     const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY} = context;
     const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
-    const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, phoneNumbers, realCallerId, teamsArray} = payload;
+    const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
 
     const alert = {
       monitoring_tool: 'Twilio',
