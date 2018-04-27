@@ -609,7 +609,6 @@ function getPhoneNumbers (context, escPolicyUrl, teamName, escPolicyName) {
       const {schedules} = body;
       const onCallArray = [];
       let escPolicyAssigned;
-      let escPolicyName;
       let schedule;
 
       // Check if an escalation policy has been specified in the Twilio UI
