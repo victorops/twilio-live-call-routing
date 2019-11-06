@@ -908,6 +908,44 @@ function leaveAMessage (twiml, context, event, payload) {
         {voice},
         `${messages.attemptTranscription} ${messages.goodbye}`
       );
+
+      let message = messages.voicemail(teamsArray[0].name);
+
+      if (goToVM !== true) {
+        message = `${messages.noAnswer} ${message}`;
+      }
+
+      twiml.say(
+        {voice},
+        message
+      );
+      twiml.record(
+        {
+          transcribe: true,
+          transcribeCallback: generateCallbackURI(
+            context,
+            {
+              callerId,
+              detailedLog,
+              goToVM,
+              runFunction: 'postToVictorOps',
+              teamsArray
+            }
+          ),
+          timeout: 10,
+          action: generateCallbackURI(
+            context,
+            {
+              callerId,
+              detailedLog,
+              runFunction: 'leaveAMessage',
+              sayGoodbye: true,
+              teamsArray
+            }
+          )
+        }
+      );
+
     // Play a message, record the caller's message, transcribe caller's message
     } else {
       let message = messages.voicemail(teamsArray[0].name);
