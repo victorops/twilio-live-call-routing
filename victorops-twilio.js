@@ -40,6 +40,7 @@ function handler (context, event, callback) {
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
+    noVoicemail: (team) => `We were unable to reach an on-call representative for the ${team} but someone will call you back shortly`,
     connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
     voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
@@ -54,7 +55,7 @@ function handler (context, event, callback) {
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
-  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice} = context;
+  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, no_voicemail} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
     : ALERT_HOST;
@@ -891,9 +892,9 @@ function isHuman (twiml, context, event, payload) {
 function leaveAMessage (twiml, context, event, payload) {
   log('leaveAMessage', event);
   return new Promise((resolve, reject) => {
-    const {messages} = context;
+    const {messages, NO_VOICEMAIL} = context;
     const {DialCallStatus} = event;
-    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice} = payload;
+    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice, From} = payload;
 
     // Caller was connected to on-call person and call completed
     if (DialCallStatus === 'completed') {
@@ -913,38 +914,55 @@ function leaveAMessage (twiml, context, event, payload) {
 
       if (goToVM !== true) {
         message = `${messages.noAnswer} ${message}`;
+      } else if (NO_VOICEMAIL === 'True' || NO_VOICEMAIL === 'true') {    
+        message = messages.noVoicemail(teamsArray[0].name); 
       }
 
       twiml.say(
         {voice},
         message
       );
-      twiml.record(
-        {
-          transcribe: true,
-          transcribeCallback: generateCallbackURI(
+      // If the no voicemail flag is set then we want to play the no voicemail message
+      // and still create an incident in VO with the caller's phone number
+      if (NO_VOICEMAIL === 'True' || NO_VOICEMAIL === 'true' ) {
+        twiml.redirect(
+          generateCallbackURI(
             context,
             {
               callerId,
-              detailedLog,
               goToVM,
-              runFunction: 'postToVictorOps',
-              teamsArray
-            }
-          ),
-          timeout: 10,
-          action: generateCallbackURI(
-            context,
-            {
-              callerId,
-              detailedLog,
-              runFunction: 'leaveAMessage',
-              sayGoodbye: true,
-              teamsArray
+              runFunction: 'postToVictorOps'
             }
           )
-        }
-      );
+        );
+      } else {
+        twiml.record(
+          {
+            transcribe: true,
+            transcribeCallback: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                goToVM,
+                runFunction: 'postToVictorOps',
+                teamsArray
+              }
+            ),
+            timeout: 10,
+            action: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                runFunction: 'leaveAMessage',
+                sayGoodbye: true,
+                teamsArray
+              }
+            )
+          }
+        );
+      }
 
     // Play a message, record the caller's message, transcribe caller's message
     } else {
@@ -1027,9 +1045,12 @@ function postToVictorOps (event, context, payload) {
       alert.message_type = 'recovery';
       alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
       alert.ack_author = phoneNumber.user;
+    } else if (CallStatus === 'no-answer') {
+      alert.monitoring_tool = 'Twilio';
+      alert.message_type = 'critical';
+      alert.caller_id = realCallerId;
     } else {
       resolve('');
-
       return;
     }
 
