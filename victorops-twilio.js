@@ -422,7 +422,7 @@ function assignTeam (twiml, context, event, payload) {
     const {messages} = context;
     let {Digits} = event;
     Digits = parseInt(Digits);
-    const {autoTeam, callerId, goToVM, voice, From} = payload;
+    const {autoTeam, callerId, goToVM, voice} = payload;
 
     // Repeats the teams menu if caller pressed 0
     if (Digits === 0) {
@@ -906,7 +906,7 @@ function leaveAMessage (twiml, context, event, payload) {
   return new Promise((resolve, reject) => {
     const {messages, NO_VOICEMAIL} = context;
     const {DialCallStatus} = event;
-    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice, From, realCallerId} = payload;
+    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice, realCallerId} = payload;
 
     // Caller was connected to on-call person and call completed
     if (DialCallStatus === 'completed') {
@@ -1027,7 +1027,7 @@ function leaveAMessage (twiml, context, event, payload) {
 function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
     const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
-    const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText, From} = event;
+    const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
 
     const alert = {
