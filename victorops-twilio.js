@@ -736,6 +736,7 @@ function call (twiml, context, event, payload) {
               context,
               {
                 callerId,
+                realCallerId,
                 goToVM,
                 detailedLog,
                 phoneNumber,
@@ -754,6 +755,7 @@ function call (twiml, context, event, payload) {
               context,
               {
                 callerId,
+                realCallerId,
                 detailedLog,
                 phoneNumber,
                 phoneNumbers,
@@ -765,6 +767,7 @@ function call (twiml, context, event, payload) {
               context,
               {
                 callerId,
+                realCallerId,
                 detailedLog,
                 goToVM,
                 phoneNumber,
@@ -1060,7 +1063,7 @@ function postToVictorOps (event, context, payload) {
     } else if (CallStatus === 'no-answer' && NO_VOICEMAIL.toLowerCase() === 'true') {
       alert.monitoring_tool = 'Twilio';
       alert.message_type = 'critical';
-      alert.caller_id = voCallNotAnswered(From);
+      alert.caller_id = messages.voCallNotAnswered(realCallerId);
     } else {
       resolve('');
       return;
