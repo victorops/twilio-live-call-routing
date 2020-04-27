@@ -41,13 +41,14 @@ function handler (context, event, callback) {
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
-    noVoicemail: (team) => `We were unable to reach an on-call representative for the ${team} but someone will call you back shortly`,
+    noVoicemail: (team) => `We were unable to reach an on-call representative for the ${team} team but someone will call you back shortly`,
     connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
     voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
+    voCallNotAnswered: (caller) => `Missed call from ${caller}.`,
     voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`,
     noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
   };
@@ -952,8 +953,6 @@ function leaveAMessage (twiml, context, event, payload) {
           )
         }
       );
-    }
-
     // If the no voicemail flag is set then we want to play the no voicemail message
     // and still create an incident in VO with the caller's phone number
     } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
@@ -1022,8 +1021,11 @@ function leaveAMessage (twiml, context, event, payload) {
 function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
     const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
-    const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
+    const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText, From} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
+
+    console.log(context);
+    console.log(payload);
 
     const alert = {
       monitoring_tool: 'Twilio',
@@ -1058,7 +1060,7 @@ function postToVictorOps (event, context, payload) {
     } else if (CallStatus === 'no-answer' && NO_VOICEMAIL.toLowerCase() === 'true') {
       alert.monitoring_tool = 'Twilio';
       alert.message_type = 'critical';
-      alert.caller_id = realCallerId;
+      alert.caller_id = voCallNotAnswered(From);
     } else {
       resolve('');
       return;
