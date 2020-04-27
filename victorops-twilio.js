@@ -27,6 +27,7 @@ function handler (context, event, callback) {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
     greeting: 'Welcome to Victor Ops Live Call Routing.',
     menu: 'Please press 1 to reach an on-call representative or press 2 to leave a message.',
+    noVMmenu: 'Please press 1 to reach an on-call representative or press 2 to alert the team.',
     zeroToRepeat: 'Press zero to repeat this menu.',
     noResponse: 'We did not receive a response.',
     invalidResponse: 'We did not receive a valid response.',
@@ -55,7 +56,7 @@ function handler (context, event, callback) {
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
-  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, no_voicemail} = context;
+  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
     : ALERT_HOST;
@@ -163,8 +164,13 @@ function log (string, content) {
 function callOrMessage (twiml, context, payload) {
   log('callOrMessage', payload);
   return new Promise((resolve, reject) => {
-    const {messages} = context;
+    const {messages, NO_VOICEMAIL} = context;
     const {callerId, voice} = payload;
+
+    let menu = messages.menu
+    if (NO_VOICEMAIL.toLowerCase() === 'true'){
+        menu = messages.noVMmenu
+    }
 
     twiml.gather(
       {
@@ -183,7 +189,7 @@ function callOrMessage (twiml, context, payload) {
     )
     .say(
       {voice},
-      `${messages.greeting} ${messages.menu} ${messages.zeroToRepeat}`
+      `${messages.greeting} ${menu} ${messages.zeroToRepeat}`
     );
     twiml.say(
       {voice},
@@ -914,55 +920,59 @@ function leaveAMessage (twiml, context, event, payload) {
 
       if (goToVM !== true) {
         message = `${messages.noAnswer} ${message}`;
-      } else if (NO_VOICEMAIL === 'True' || NO_VOICEMAIL === 'true') {    
-        message = messages.noVoicemail(teamsArray[0].name); 
       }
 
       twiml.say(
         {voice},
         message
       );
-      // If the no voicemail flag is set then we want to play the no voicemail message
-      // and still create an incident in VO with the caller's phone number
-      if (NO_VOICEMAIL === 'True' || NO_VOICEMAIL === 'true' ) {
-        twiml.redirect(
-          generateCallbackURI(
+      twiml.record(
+        {
+          transcribe: true,
+          transcribeCallback: generateCallbackURI(
             context,
             {
               callerId,
+              detailedLog,
               goToVM,
-              runFunction: 'postToVictorOps'
+              runFunction: 'postToVictorOps',
+              teamsArray
+            }
+          ),
+          timeout: 10,
+          action: generateCallbackURI(
+            context,
+            {
+              callerId,
+              detailedLog,
+              runFunction: 'leaveAMessage',
+              sayGoodbye: true,
+              teamsArray
             }
           )
-        );
-      } else {
-        twiml.record(
+        }
+      );
+    }
+
+    // If the no voicemail flag is set then we want to play the no voicemail message
+    // and still create an incident in VO with the caller's phone number
+    } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
+      let message = messages.noVoicemail(teamsArray[0].name);
+
+      twiml.say(
+        {voice},
+        message
+      );
+      twiml.redirect(
+        generateCallbackURI(
+          context,
           {
-            transcribe: true,
-            transcribeCallback: generateCallbackURI(
-              context,
-              {
-                callerId,
-                detailedLog,
-                goToVM,
-                runFunction: 'postToVictorOps',
-                teamsArray
-              }
-            ),
-            timeout: 10,
-            action: generateCallbackURI(
-              context,
-              {
-                callerId,
-                detailedLog,
-                runFunction: 'leaveAMessage',
-                sayGoodbye: true,
-                teamsArray
-              }
-            )
+            callerId,
+            goToVM,
+            runFunction: 'postToVictorOps'
           }
-        );
-      }
+        )
+      );
 
     // Play a message, record the caller's message, transcribe caller's message
     } else {
@@ -1011,7 +1021,7 @@ function leaveAMessage (twiml, context, event, payload) {
 // Posts information to VictorOps that generates alerts that show up in the timeline
 function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
-    const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY} = context;
+    const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
     const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
 
@@ -1045,7 +1055,7 @@ function postToVictorOps (event, context, payload) {
       alert.message_type = 'recovery';
       alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
       alert.ack_author = phoneNumber.user;
-    } else if (CallStatus === 'no-answer') {
+    } else if (CallStatus === 'no-answer' && NO_VOICEMAIL.toLowerCase() === 'true') {
       alert.monitoring_tool = 'Twilio';
       alert.message_type = 'critical';
       alert.caller_id = realCallerId;
