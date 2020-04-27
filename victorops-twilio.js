@@ -966,6 +966,7 @@ function leaveAMessage (twiml, context, event, payload) {
         generateCallbackURI(
           context,
           {
+            realCallerId,
             callerId,
             goToVM,
             runFunction: 'postToVictorOps'
@@ -1023,9 +1024,6 @@ function postToVictorOps (event, context, payload) {
     const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
     const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText, From} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
-
-    console.log(context);
-    console.log(payload);
 
     const alert = {
       monitoring_tool: 'Twilio',
