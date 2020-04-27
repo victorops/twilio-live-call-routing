@@ -27,7 +27,7 @@ function handler (context, event, callback) {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
     greeting: 'Welcome to Victor Ops Live Call Routing.',
     menu: 'Please press 1 to reach an on-call representative or press 2 to leave a message.',
-    noVMmenu: 'Please press 1 to reach an on-call representative or press 2 to alert the team.',
+    noVMmenu: 'Please press 1 to reach an on-call representative or press 2 to request a callback from the team',
     zeroToRepeat: 'Press zero to repeat this menu.',
     noResponse: 'We did not receive a response.',
     invalidResponse: 'We did not receive a valid response.',
@@ -41,14 +41,15 @@ function handler (context, event, callback) {
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
-    noVoicemail: (team) => `We were unable to reach an on-call representative for the ${team} team but someone will call you back shortly`,
+    noVoicemailAfterCall: (team) => `We were unable to reach an on-call representative for the ${team} team but someone will call you back shortly`,
+    noVoicemail: => `We are creating an incident for the on-call team, someone will call you back shortly`,
     connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
     voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
-    voCallNotAnswered: (caller) => `Missed call from ${caller}.`,
+    voCallNotAnswered: (caller) => `Recieved call from ${caller}.`,
     voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`,
     noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
   };
@@ -961,7 +962,12 @@ function leaveAMessage (twiml, context, event, payload) {
     // If the no voicemail flag is set then we want to play the no voicemail message
     // and still create an incident in VO with the caller's phone number
     } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
-      let message = messages.noVoicemail(teamsArray[0].name);
+      let message = messages.noVoicemailAfterCall(teamsArray[0].name);
+
+      if (goToVM === true) {
+        message = messages.noVoicemail();
+      }
+
 
       twiml.say(
         {voice},
