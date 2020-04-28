@@ -41,8 +41,7 @@ function handler (context, event, callback) {
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
-    noVoicemailAfterCall: (team) => `We were unable to reach an on-call representative for the ${team} team but someone will call you back shortly`,
-    noVoicemail: => `We are creating an incident for the on-call team, someone will call you back shortly`,
+    noVoicemail: (team) => `We are creating an incident for the ${team} team.  Someone will call you back shortly.`,
     connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
     voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
@@ -65,6 +64,9 @@ function handler (context, event, callback) {
   context.API_HOST = _.isUndefined(API_HOST)
     ? 'api.victorops.com'
     : API_HOST;
+  context.NO_VOICEMAIL = _.isUndefined(NO_VOICEMAIL)
+    ? 'false'
+    : NO_VOICEMAIL;
   context.messages = messages;
   context.headers = {
     'Content-Type': 'application/json',
@@ -962,12 +964,7 @@ function leaveAMessage (twiml, context, event, payload) {
     // If the no voicemail flag is set then we want to play the no voicemail message
     // and still create an incident in VO with the caller's phone number
     } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
-      let message = messages.noVoicemailAfterCall(teamsArray[0].name);
-
-      if (goToVM === true) {
-        message = messages.noVoicemail();
-      }
-
+      let message = messages.noVoicemail(teamsArray[0].name);
 
       twiml.say(
         {voice},
@@ -1003,6 +1000,7 @@ function leaveAMessage (twiml, context, event, payload) {
           transcribeCallback: generateCallbackURI(
             context,
             {
+              realCallerId,
               callerId,
               detailedLog,
               goToVM,
@@ -1014,6 +1012,7 @@ function leaveAMessage (twiml, context, event, payload) {
           action: generateCallbackURI(
             context,
             {
+              realCallerId,
               callerId,
               detailedLog,
               runFunction: 'leaveAMessage',
