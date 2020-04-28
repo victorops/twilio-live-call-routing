@@ -57,7 +57,7 @@ function handler (context, event, callback) {
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
-  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice} = context;
+  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, NO_VOICEMAIL} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
     : ALERT_HOST;
@@ -965,6 +965,10 @@ function leaveAMessage (twiml, context, event, payload) {
     // and still create an incident in VO with the caller's phone number
     } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
       let message = messages.noVoicemail(teamsArray[0].name);
+
+      if (goToVM !== true) {
+        message = `${messages.noAnswer} ${message}`;
+      }
 
       twiml.say(
         {voice},
