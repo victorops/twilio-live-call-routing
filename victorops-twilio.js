@@ -257,6 +257,7 @@ function teamsMenu (twiml, context, event, payload) {
 
         if (Digits === 2) {
           goToVM = true;
+          realCallerId = From;
         }
 
         // If Twilio configure has any keys starting with 'TEAM',
@@ -423,7 +424,7 @@ function assignTeam (twiml, context, event, payload) {
   log('assignTeam', event);
   return new Promise((resolve, reject) => {
     const {messages} = context;
-    let {Digits} = event;
+    let {Digits, From} = event;
     Digits = parseInt(Digits);
     const {autoTeam, callerId, goToVM, voice} = payload;
 
@@ -447,6 +448,7 @@ function assignTeam (twiml, context, event, payload) {
       );
     // Take the appropriate action based on call or message menu
     } else {
+      let realCallerId = From;
       let {teamsArray} = payload;
 
       // Take the caller to voicemail
@@ -529,7 +531,7 @@ function buildOnCallList (twiml, context, payload) {
   log('buildOnCallList', payload);
   return new Promise((resolve, reject) => {
     const {messages, NUMBER_OF_MENUS} = context;
-    const {callerId, teamsArray, voice} = payload;
+    const {callerId, teamsArray, voice, realCallerId} = payload;
 
     // Creates a list of phone numbers based on the first 3 escalation policies
     const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
@@ -554,6 +556,7 @@ function buildOnCallList (twiml, context, payload) {
             context,
             {
               phoneNumbers,
+              realCallerId,
               runFunction: 'leaveAMessage',
               teamsArray
             }
@@ -572,6 +575,7 @@ function buildOnCallList (twiml, context, payload) {
               callerId,
               firstCall: true,
               phoneNumbers,
+              realCallerId,
               runFunction: 'call',
               teamsArray
             }
