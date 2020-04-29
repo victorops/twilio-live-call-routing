@@ -217,7 +217,7 @@ function teamsMenu (twiml, context, event, payload) {
   log('teamsMenu', event);
   return new Promise((resolve, reject) => {
     const {API_HOST, headers, messages, NUMBER_OF_MENUS} = context;
-    let {Digits} = event;
+    let {Digits, From} = event;
     Digits = parseInt(Digits);
     const {callerId, fromCallorMessage, voice} = payload;
     let {goToVM} = payload;
@@ -495,6 +495,7 @@ function assignTeam (twiml, context, event, payload) {
             {
               callerId,
               goToVM,
+              realCallerId,
               runFunction: 'buildOnCallList',
               teamsArray
             }
@@ -985,7 +986,8 @@ function leaveAMessage (twiml, context, event, payload) {
             realCallerId,
             callerId,
             goToVM,
-            runFunction: 'postToVictorOps'
+            runFunction: 'postToVictorOps',
+            teamsArray
           }
         )
       );
@@ -1049,8 +1051,13 @@ function postToVictorOps (event, context, payload) {
       entity_display_name: 'Twilio Live Call Routing Details'
     };
 
+    // If they're going straight to VM and no voicemail is set, just create the incident
+    if (goToVM === true && NO_VOICEMAIL.toLowerCase() === 'true') {
+      alert.monitoring_tool = 'Twilio';
+      alert.message_type = 'critical';
+      alert.caller_id = messages.voCallNotAnswered(realCallerId);
     // Create an incident in VictorOps if Twilio was able to transcribe caller's message
-    if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
+    } else if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
       alert.message_type = 'critical';
       alert.entity_display_name = goToVM === true
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
