@@ -27,6 +27,7 @@ function handler (context, event, callback) {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
     greeting: 'Welcome to Victor Ops Live Call Routing.',
     menu: 'Please press 1 to reach an on-call representative or press 2 to leave a message.',
+    noVMmenu: 'Please press 1 to reach an on-call representative or press 2 to request a callback from the team',
     zeroToRepeat: 'Press zero to repeat this menu.',
     noResponse: 'We did not receive a response.',
     invalidResponse: 'We did not receive a valid response.',
@@ -40,12 +41,14 @@ function handler (context, event, callback) {
     connected: 'You are now connected.',
     noAnswer: 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
+    noVoicemail: (team) => `We are creating an incident for the ${team} team.  Someone will call you back shortly.`,
     connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
     voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
+    voCallNotAnswered: (caller) => `Recieved call from ${caller}.`,
     voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`,
     noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
   };
@@ -54,13 +57,16 @@ function handler (context, event, callback) {
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
-  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice} = context;
+  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, NO_VOICEMAIL} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
     : ALERT_HOST;
   context.API_HOST = _.isUndefined(API_HOST)
     ? 'api.victorops.com'
     : API_HOST;
+  context.NO_VOICEMAIL = _.isUndefined(NO_VOICEMAIL)
+    ? 'false'
+    : NO_VOICEMAIL;
   context.messages = messages;
   context.headers = {
     'Content-Type': 'application/json',
@@ -162,8 +168,13 @@ function log (string, content) {
 function callOrMessage (twiml, context, payload) {
   log('callOrMessage', payload);
   return new Promise((resolve, reject) => {
-    const {messages} = context;
+    const {messages, NO_VOICEMAIL} = context;
     const {callerId, voice} = payload;
+
+    let menu = messages.menu
+    if (NO_VOICEMAIL.toLowerCase() === 'true'){
+        menu = messages.noVMmenu
+    }
 
     twiml.gather(
       {
@@ -182,7 +193,7 @@ function callOrMessage (twiml, context, payload) {
     )
     .say(
       {voice},
-      `${messages.greeting} ${messages.menu} ${messages.zeroToRepeat}`
+      `${messages.greeting} ${menu} ${messages.zeroToRepeat}`
     );
     twiml.say(
       {voice},
@@ -206,7 +217,7 @@ function teamsMenu (twiml, context, event, payload) {
   log('teamsMenu', event);
   return new Promise((resolve, reject) => {
     const {API_HOST, headers, messages, NUMBER_OF_MENUS} = context;
-    let {Digits} = event;
+    let {Digits, From} = event;
     Digits = parseInt(Digits);
     const {callerId, fromCallorMessage, voice} = payload;
     let {goToVM} = payload;
@@ -246,6 +257,7 @@ function teamsMenu (twiml, context, event, payload) {
 
         if (Digits === 2) {
           goToVM = true;
+          realCallerId = From;
         }
 
         // If Twilio configure has any keys starting with 'TEAM',
@@ -412,7 +424,7 @@ function assignTeam (twiml, context, event, payload) {
   log('assignTeam', event);
   return new Promise((resolve, reject) => {
     const {messages} = context;
-    let {Digits} = event;
+    let {Digits, From} = event;
     Digits = parseInt(Digits);
     const {autoTeam, callerId, goToVM, voice} = payload;
 
@@ -436,6 +448,7 @@ function assignTeam (twiml, context, event, payload) {
       );
     // Take the appropriate action based on call or message menu
     } else {
+      let realCallerId = From;
       let {teamsArray} = payload;
 
       // Take the caller to voicemail
@@ -447,6 +460,7 @@ function assignTeam (twiml, context, event, payload) {
               {
                 callerId,
                 goToVM,
+                realCallerId,
                 runFunction: 'leaveAMessage',
                 teamsArray
               }
@@ -460,6 +474,7 @@ function assignTeam (twiml, context, event, payload) {
               {
                 callerId,
                 goToVM,
+                realCallerId,
                 runFunction: 'leaveAMessage',
                 teamsArray
               }
@@ -480,6 +495,7 @@ function assignTeam (twiml, context, event, payload) {
             {
               callerId,
               goToVM,
+              realCallerId,
               runFunction: 'buildOnCallList',
               teamsArray
             }
@@ -516,7 +532,7 @@ function buildOnCallList (twiml, context, payload) {
   log('buildOnCallList', payload);
   return new Promise((resolve, reject) => {
     const {messages, NUMBER_OF_MENUS} = context;
-    const {callerId, teamsArray, voice} = payload;
+    const {callerId, teamsArray, voice, realCallerId} = payload;
 
     // Creates a list of phone numbers based on the first 3 escalation policies
     const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
@@ -541,6 +557,7 @@ function buildOnCallList (twiml, context, payload) {
             context,
             {
               phoneNumbers,
+              realCallerId,
               runFunction: 'leaveAMessage',
               teamsArray
             }
@@ -559,6 +576,7 @@ function buildOnCallList (twiml, context, payload) {
               callerId,
               firstCall: true,
               phoneNumbers,
+              realCallerId,
               runFunction: 'call',
               teamsArray
             }
@@ -726,6 +744,7 @@ function call (twiml, context, event, payload) {
               context,
               {
                 callerId,
+                realCallerId,
                 goToVM,
                 detailedLog,
                 phoneNumber,
@@ -744,6 +763,7 @@ function call (twiml, context, event, payload) {
               context,
               {
                 callerId,
+                realCallerId,
                 detailedLog,
                 phoneNumber,
                 phoneNumbers,
@@ -755,6 +775,7 @@ function call (twiml, context, event, payload) {
               context,
               {
                 callerId,
+                realCallerId,
                 detailedLog,
                 goToVM,
                 phoneNumber,
@@ -891,9 +912,9 @@ function isHuman (twiml, context, event, payload) {
 function leaveAMessage (twiml, context, event, payload) {
   log('leaveAMessage', event);
   return new Promise((resolve, reject) => {
-    const {messages} = context;
+    const {messages, NO_VOICEMAIL} = context;
     const {DialCallStatus} = event;
-    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice} = payload;
+    const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice, realCallerId} = payload;
 
     // Caller was connected to on-call person and call completed
     if (DialCallStatus === 'completed') {
@@ -945,6 +966,31 @@ function leaveAMessage (twiml, context, event, payload) {
           )
         }
       );
+    // If the no voicemail flag is set then we want to play the no voicemail message
+    // and still create an incident in VO with the caller's phone number
+    } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
+      let message = messages.noVoicemail(teamsArray[0].name);
+
+      if (goToVM !== true) {
+        message = `${messages.noAnswer} ${message}`;
+      }
+
+      twiml.say(
+        {voice},
+        message
+      );
+      twiml.redirect(
+        generateCallbackURI(
+          context,
+          {
+            realCallerId,
+            callerId,
+            goToVM,
+            runFunction: 'postToVictorOps',
+            teamsArray
+          }
+        )
+      );
 
     // Play a message, record the caller's message, transcribe caller's message
     } else {
@@ -964,6 +1010,7 @@ function leaveAMessage (twiml, context, event, payload) {
           transcribeCallback: generateCallbackURI(
             context,
             {
+              realCallerId,
               callerId,
               detailedLog,
               goToVM,
@@ -975,6 +1022,7 @@ function leaveAMessage (twiml, context, event, payload) {
           action: generateCallbackURI(
             context,
             {
+              realCallerId,
               callerId,
               detailedLog,
               runFunction: 'leaveAMessage',
@@ -993,7 +1041,7 @@ function leaveAMessage (twiml, context, event, payload) {
 // Posts information to VictorOps that generates alerts that show up in the timeline
 function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
-    const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY} = context;
+    const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
     const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
 
@@ -1003,8 +1051,13 @@ function postToVictorOps (event, context, payload) {
       entity_display_name: 'Twilio Live Call Routing Details'
     };
 
+    // If they're going straight to VM and no voicemail is set, just create the incident
+    if (goToVM === true && NO_VOICEMAIL.toLowerCase() === 'true') {
+      alert.monitoring_tool = 'Twilio';
+      alert.message_type = 'critical';
+      alert.caller_id = messages.voCallNotAnswered(realCallerId);
     // Create an incident in VictorOps if Twilio was able to transcribe caller's message
-    if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
+    } else if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
       alert.message_type = 'critical';
       alert.entity_display_name = goToVM === true
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
@@ -1027,9 +1080,12 @@ function postToVictorOps (event, context, payload) {
       alert.message_type = 'recovery';
       alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
       alert.ack_author = phoneNumber.user;
+    } else if (CallStatus === 'no-answer' && NO_VOICEMAIL.toLowerCase() === 'true') {
+      alert.monitoring_tool = 'Twilio';
+      alert.message_type = 'critical';
+      alert.caller_id = messages.voCallNotAnswered(realCallerId);
     } else {
       resolve('');
-
       return;
     }
 
