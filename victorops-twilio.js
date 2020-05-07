@@ -25,7 +25,7 @@ module.exports = {
 function handler (context, event, callback) {
   const messages = {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
-    greeting: 'Welcome to Victor Ops Live Call Routing.',
+    greeting: 'Welcome to Victor Ops Lyve Call Routing.',
     menu: 'Please press 1 to reach an on-call representative or press 2 to leave a message.',
     noVMmenu: 'Please press 1 to reach an on-call representative or press 2 to request a callback from the team',
     zeroToRepeat: 'Press zero to repeat this menu.',
@@ -35,7 +35,7 @@ function handler (context, event, callback) {
     noTeamsError: 'There was an error retrieving the list of teams for your organization.',
     otherPartyDisconnect: 'The other party has disconnected.',
     attemptTranscription: 'Twilio will attempt to transcribe your message and create an incident in Victor Ops.',
-    pressKeyToConnect: 'This is Victor Ops Live Call Routing. Press any number to connect.',
+    pressKeyToConnect: 'This is Victor Ops Lyve Call Routing. Press any number to connect.',
     errorGettingPhoneNumbers: 'There was an error retrieving the on-call phone numbers. Please try again.',
     nextOnCall: 'Trying next on-call representative.',
     connected: 'You are now connected.',
@@ -85,7 +85,7 @@ function handler (context, event, callback) {
   // Add 'voice' key in Twilio config to change how Twilio sounds [default = 'woman', 'man', 'alice']
   payload.voice = (voice === 'alice' || voice === 'man')
     ? voice
-    : 'woman';
+    : 'Polly.Salli';
   let {callerId} = payload;
   payload.callerId = _.isUndefined(callerId)
     ? To
