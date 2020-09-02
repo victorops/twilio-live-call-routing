@@ -39,12 +39,12 @@ function handler (context, event, callback) {
     errorGettingPhoneNumbers: 'There was an error retrieving the on-call phone numbers. Please try again.',
     nextOnCall: 'Trying next on-call representative.',
     connected: 'You are now connected.',
-    noAnswer: 'We were unable to reach an on-call representative.',
+    noAnswer: '',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
     noVoicemail: (team) => `We are creating an incident for the ${team} team.  Someone will call you back shortly.`,
-    connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
+    connecting: (team) => ``,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
-    voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
+    voTwilioMessageAfter: (team) => `Twilio: New Voicemail`,
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
@@ -145,7 +145,7 @@ function main (twiml, context, event, payload) {
     case 'buildOnCallList':
       return buildOnCallList(twiml, context, payload);
     case 'call':
-      return call(twiml, context, event, payload);
+      return leaveAMessage(twiml, context, event, payload);
     case 'isHuman':
       return isHuman(twiml, context, event, payload);
     case 'leaveAMessage':
