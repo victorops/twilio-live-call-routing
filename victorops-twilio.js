@@ -23,6 +23,10 @@ module.exports = {
 // Make changes to messages if you want to modify what is spoken during a call
 // Message keys starting with 'vo' are the text that show up in VictorOps timeline alerts
 function handler (context, event, callback) {
+  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, NO_VOICEMAIL, NO_CALL} = context;
+  context.NO_CALL = _.isUndefined(NO_CALL)
+    ? 'false'
+    : NO_CALL.toLowerCase();
   const messages = {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
     greeting: 'Welcome to Victor Ops Lyve Call Routing.',
@@ -39,12 +43,12 @@ function handler (context, event, callback) {
     errorGettingPhoneNumbers: 'There was an error retrieving the on-call phone numbers. Please try again.',
     nextOnCall: 'Trying next on-call representative.',
     connected: 'You are now connected.',
-    noAnswer: 'We were unable to reach an on-call representative.',
+    noAnswer: (context.NO_CALL == 'true') ? '' : 'We were unable to reach an on-call representative.',
     voicemail: (team) => `Please leave a message for the ${team} team and hang up when you are finished.'`,
     noVoicemail: (team) => `We are creating an incident for the ${team} team.  Someone will call you back shortly.`,
-    connecting: (team) => `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
+    connecting: (team) => (context.NO_CALL == 'true') ? '' : `We are connecting you to the representative on-call for the ${team} team - Please hold.`,
     voTwilioMessageDirect: (team) => `Twilio: message left for the ${team} team`,
-    voTwilioMessageAfter: (team) => `Twilio: unable to reach on-call for the ${team} team`,
+    voTwilioMessageAfter: (team) => (context.NO_CALL == 'true') ? 'Twilio: New Voicemail' : `Twilio: unable to reach on-call for the ${team} team`,
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
@@ -57,7 +61,6 @@ function handler (context, event, callback) {
   const payload = _.isUndefined(payloadString)
     ? {}
     : JSON.parse(payloadString);
-  let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, NO_VOICEMAIL} = context;
   context.ALERT_HOST = _.isUndefined(ALERT_HOST)
     ? 'alert.victorops.com'
     : ALERT_HOST;
@@ -145,7 +148,9 @@ function main (twiml, context, event, payload) {
     case 'buildOnCallList':
       return buildOnCallList(twiml, context, payload);
     case 'call':
-      return call(twiml, context, event, payload);
+      return (context.NO_CALL == 'true')
+        ? leaveAMessage(twiml, context, event, payload)
+        : call(twiml, context, event, payload);
     case 'isHuman':
       return isHuman(twiml, context, event, payload);
     case 'leaveAMessage':
@@ -376,7 +381,7 @@ function teamsMenu (twiml, context, event, payload) {
 // Creates a list of teams for the teamsMenu if there are any keys that begin with 'TEAM' in Twilio configure
 function buildManualTeamList (context) {
   log('buildManualTeamsList', context);
-  const arrayOfTeams = [];
+  let arrayOfTeams = [];
 
   Object.keys(context).forEach((key) => {
     if (key.substring(0, 4).toLowerCase() === 'team') {
@@ -396,6 +401,8 @@ function buildManualTeamList (context) {
           escPolicyName
         }
       );
+      arrayOfTeams.sort((a, b) => (a.name > b.name) ? 1 : -1);
+      arrayOfTeams.reverse();
     }
   });
 
