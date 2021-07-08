@@ -55,7 +55,7 @@ function handler (context, event, callback) {
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
     voCallNotAnswered: (caller) => `Missed call from ${caller}.`,
     voCallCompleted: (user, caller, log) => `${user} answered a call from ${caller}. ${log}`,
-     noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
+    noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
   };
   const {VICTOROPS_API_KEY, VICTOROPS_API_ID} = context;
   const {payloadString, To} = event;
@@ -545,7 +545,6 @@ function buildOnCallList (twiml, context, payload) {
     // Creates a list of phone numbers based on the first 3 escalation policies
     const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
     const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url, teamsArray[0].name, teamsArray[0].escPolicyName));
-    phoneNumberArray.length = 1;
     Promise.all(phoneNumberArray)
     .then(phoneNumbers => {
       phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== false);
@@ -723,7 +722,7 @@ function call (twiml, context, event, payload) {
     const {DialCallStatus, From, DialBridged, CallSid} = event;
     const {callerId, firstCall, goToVM, phoneNumbers, teamsArray, voice} = payload;
     let {detailedLog, realCallerId} = payload;
-    let phoneNumber; 
+    let phoneNumber;
     
     // Caller was connected to on-call person and call completed
     if (DialCallStatus === 'completed' && DialBridged == 'true') {
@@ -731,9 +730,8 @@ function call (twiml, context, event, payload) {
         {voice},
         `${messages.otherPartyDisconnect} ${messages.goodbye}`
       );
-      return postToVictorOps(event,context,payload);
-    }
-    else{
+      return postToVictorOps(event, context, payload);
+    } else {
       return new Promise((resolve, reject) => {
         if (firstCall !== true) {
           twiml.say(
@@ -760,7 +758,6 @@ function call (twiml, context, event, payload) {
                   detailedLog,
                   phoneNumber,
                   phoneNumbers,
-                  realCallerId,
                   runFunction: 'leaveAMessage',
                   teamsArray
                 }
@@ -927,9 +924,8 @@ function leaveAMessage (twiml, context, event, payload) {
     
     // Caller was connected to on-call person and call completed
     if (DialCallStatus == 'completed' && DialBridged == 'true') {
-      return postToVictorOps(event,context,payload);
-    }
-    else{
+      return postToVictorOps(event, context, payload);
+    } else {
       return new Promise((resolve, reject) => {
         // If caller does not hang up after leaving message,
         // this message will play and then end the call
@@ -1100,7 +1096,6 @@ function postToVictorOps (event, context, payload) {
       resolve('');
       return;
     }
-    //console.log(alert)
     log('postToVictorOps', event);
     got.post(
       `https://${ALERT_HOST}/integrations/generic/20131114/alert/${VICTOROPS_TWILIO_SERVICE_API_KEY}/${teamsArray[0].slug}`,
