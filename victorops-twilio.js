@@ -515,6 +515,7 @@ function assignTeam (twiml, context, event, payload) {
           generateCallbackURI(
             context,
             {
+              realCallerId,
               callerId,
               goToVM,
               runFunction: 'buildOnCallList',
@@ -1070,7 +1071,7 @@ function postToVictorOps (event, context, payload) {
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciption(TranscriptionText, detailedLog);
     // Create an incident in VictorOps if Twilio was unable to transcribe caller's message
-    } else if (!(_.isUndefined(TranscriptionText))) {
+    } else if (TranscriptionStatus == 'failed') {
       alert.message_type = 'critical';
       alert.entity_display_name = goToVM === true
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
