@@ -1040,16 +1040,50 @@ function leaveAMessage (twiml, context, event, payload) {
           }
         );
       }
-      
       resolve(twiml);
     });
   }
 }
 
+function emailVoicemailLink (event, context, transcription_status){
+  //Attempt to email voicemail
+  //Initialize SendGrid Mail Client          to: context.TO_EMAIL_ADDRESS,
+  const sgMail = require('@sendgrid/mail');
+
+  // Define Handler function required for all Twilio Functions
+  //exports.handler = function(context, event, callback) {
+  // Build SG mail request
+  sgMail.setApiKey(context.SENDGRID_API_SECRET);													 
+  let msg;
+  if (transcription_status != false){
+    // Define message params
+      msg = {
+      to: context.TO_EMAIL_ADDRESS,
+      from: context.FROM_EMAIL_ADDRESS,
+      text: `New Splunk On-Call Voicemail from: ${event.From}\n Transcription is: ${event.TranscriptionText}\n Recording URL is: ${event.RecordingUrl}`,
+      subject: `New Splunk On-Call Voicemail from: ${event.From}`,
+    };
+  }
+  else{
+    // Define message params
+      msg = {
+      to: context.TO_EMAIL_ADDRESS,
+      from: context.FROM_EMAIL_ADDRESS,
+      text: `New Splunk On-Call Voicemail from: ${event.From}\n Recording URL is: ${event.RecordingUrl}`,
+      subject: `New Splunk On-Call Voicemail from: ${event.From}`,
+    };
+  }
+  // Send message
+  sgMail.send(msg)
+  .then(() => {console.log("email successful");}, error => {
+    console.log("Email Failed.", error.response.body);
+  });
+}
+
 // Posts information to VictorOps that generates alerts that show up in the timeline
 function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
-    const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
+    const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL, VM_EMAIL} = context;
     const {CallSid, CallStatus, TranscriptionStatus, TranscriptionText,ParentCallSid, DialCallStatus} = event;
     const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray, voice, entityId} = payload;
     const alert = {
@@ -1070,6 +1104,9 @@ function postToVictorOps (event, context, payload) {
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciption(TranscriptionText, detailedLog);
+        if (VM_EMAIL && VM_EMAIL.toLowerCase() === 'true'){
+          emailVoicemailLink(event, context, true);
+        };
     // Create an incident in VictorOps if Twilio was unable to transcribe caller's message
     } else if (TranscriptionStatus == 'failed') {
       alert.message_type = 'critical';
@@ -1077,6 +1114,9 @@ function postToVictorOps (event, context, payload) {
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciptionFail(detailedLog);
+        if (VM_EMAIL && VM_EMAIL.toLowerCase() === 'true') {
+          emailVoicemailLink(event, context, false);
+        };
     // Create an 'Acknowledgement' alert in VictorOps when caller is connected with on-call person
     } else if (callAnsweredByHuman === true) {
       alert.message_type = 'acknowledgement';
