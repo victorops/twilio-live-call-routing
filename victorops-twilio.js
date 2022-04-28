@@ -1,5 +1,6 @@
 // ==========================================================================
-// Copyright 2017 VictorOps, Inc.
+// Splunk On-Call Live Call Routing
+// Copyright 2021 Splunk, Inc.
 // https://github.com/victorops/twilio-live-call-routing/blob/master/LICENSE
 // ==========================================================================
 
@@ -21,7 +22,7 @@ module.exports = {
 };
 
 // Make changes to messages if you want to modify what is spoken during a call
-// Message keys starting with 'vo' are the text that show up in VictorOps timeline alerts
+// Message keys starting with 'vo' are the text that show up in On-Call timeline alerts
 function handler (context, event, callback) {
   let {ALERT_HOST, API_HOST, NUMBER_OF_MENUS, voice, NO_VOICEMAIL, NO_CALL} = context;
   context.NO_CALL = _.isUndefined(NO_CALL)
@@ -29,7 +30,7 @@ function handler (context, event, callback) {
     : NO_CALL.toLowerCase();
   const messages = {
     missingConfig: 'There is a missing configuration value. Please contact your administrator to fix the problem.',
-    greeting: 'Welcome to Victor Ops Lyve Call Routing.',
+    greeting: 'Welcome to Splunk Lyve Call Routing.',
     menu: 'Please press 1 to reach an on-call representative or press 2 to leave a message.',
     noVMmenu: 'Please press 1 to reach an on-call representative or press 2 to request a callback from the team',
     zeroToRepeat: 'Press zero to repeat this menu.',
@@ -38,8 +39,8 @@ function handler (context, event, callback) {
     goodbye: 'Goodbye.',
     noTeamsError: 'There was an error retrieving the list of teams for your organization.',
     otherPartyDisconnect: 'The other party has disconnected.',
-    attemptTranscription: 'Twilio will attempt to transcribe your message and create an incident in Victor Ops.',
-    pressKeyToConnect: 'This is Victor Ops Lyve Call Routing. Press any number to connect.',
+    attemptTranscription: 'Twilio will attempt to transcribe your message and create an incident in Splunk On-Call.',
+    pressKeyToConnect: 'This is Splunk Lyve Call Routing. Press any number to connect.',
     errorGettingPhoneNumbers: 'There was an error retrieving the on-call phone numbers. Please try again.',
     nextOnCall: 'Trying next on-call representative.',
     connected: 'You are now connected.',
@@ -52,8 +53,8 @@ function handler (context, event, callback) {
     voTwilioTransciption: (transcription, log) => `Transcribed message from Twilio:\n${transcription}${log || ''}`,
     voTwilioTransciptionFail: (log) => `Twilio was unable to transcribe message.${log || ''}`,
     voCallAnswered: (user, caller, log) => `${user} answered a call from ${caller}.${log}`,
-    voCallNotAnswered: (caller) => `Recieved call from ${caller}.`,
-    voCallCompleted: (user, caller, duration, log) => `${user} answered a call from ${caller} that lasted ${duration} seconds.${log}`,
+    voCallNotAnswered: (caller) => `Missed call from ${caller}.`,
+    voCallCompleted: (user, caller, log) => `${user} answered a call from ${caller}. ${log}`,
     noTeam: (team) => `Team ${team} does not exist. Please contact your administrator to fix the problem.`
   };
   const {VICTOROPS_API_KEY, VICTOROPS_API_ID} = context;
@@ -514,6 +515,7 @@ function assignTeam (twiml, context, event, payload) {
           generateCallbackURI(
             context,
             {
+              realCallerId,
               callerId,
               goToVM,
               runFunction: 'buildOnCallList',
@@ -544,7 +546,6 @@ function buildOnCallList (twiml, context, payload) {
     // Creates a list of phone numbers based on the first 3 escalation policies
     const escPolicyUrlArray = createEscPolicyUrls(context, teamsArray[0].slug);
     const phoneNumberArray = escPolicyUrlArray.map(url => getPhoneNumbers(context, url, teamsArray[0].name, teamsArray[0].escPolicyName));
-
     Promise.all(phoneNumberArray)
     .then(phoneNumbers => {
       phoneNumbers = phoneNumbers.filter(phoneNumber => phoneNumber !== false);
@@ -718,140 +719,141 @@ function setSchedule (schedulesArray, escPolicyName) {
 // Connects caller to people on-call and builds a log of calls made
 function call (twiml, context, event, payload) {
   log('call', event);
-  return new Promise((resolve, reject) => {
     const {messages} = context;
-    const {DialCallStatus, From} = event;
+    const {DialCallStatus, From, DialBridged, CallSid} = event;
     const {callerId, firstCall, goToVM, phoneNumbers, teamsArray, voice} = payload;
     let {detailedLog, realCallerId} = payload;
     let phoneNumber;
-
+    
     // Caller was connected to on-call person and call completed
-    if (DialCallStatus === 'completed') {
+    if (DialCallStatus === 'completed' && DialBridged == 'true') {
       twiml.say(
         {voice},
         `${messages.otherPartyDisconnect} ${messages.goodbye}`
       );
+      return postToVictorOps(event, context, payload);
     } else {
-      if (firstCall !== true) {
-        twiml.say(
-          {voice},
-          `${messages.nextOnCall}`
-        );
-      } else {
-        realCallerId = From;
-      }
+      return new Promise((resolve, reject) => {
+        if (firstCall !== true) {
+          twiml.say(
+            {voice},
+            `${messages.nextOnCall}`
+          );
+        } else {
+          realCallerId = From;
+        }
 
-      // Attempt to connect to last on-call person and go to voicemail if no answer
-      if (phoneNumbers.length === 1) {
-        phoneNumber = phoneNumbers[0];
-        detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
-        twiml.dial(
-          {
-            action: generateCallbackURI(
-              context,
-              {
-                callerId,
-                realCallerId,
-                goToVM,
-                detailedLog,
-                phoneNumber,
-                phoneNumbers,
-                realCallerId,
-                runFunction: 'leaveAMessage',
-                teamsArray
-              }
-            ),
-            callerId
-          }
-        )
-        .number(
-          {
-            url: generateCallbackURI(
-              context,
-              {
-                callerId,
-                realCallerId,
-                detailedLog,
-                phoneNumber,
-                phoneNumbers,
-                runFunction: 'isHuman',
-                teamsArray
-              }
-            ),
-            statusCallback: generateCallbackURI(
-              context,
-              {
-                callerId,
-                realCallerId,
-                detailedLog,
-                goToVM,
-                phoneNumber,
-                phoneNumbers,
-                runFunction: 'postToVictorOps',
-                teamsArray
-              }
-            ),
-            statusCallbackEvent: 'completed'
-          },
-          phoneNumber.phone
-        );
-      // Attempt to connect to first on-call person and attempt to connect to next on-call person if no answer
-      } else {
-        phoneNumber = phoneNumbers[0];
-        phoneNumbers.shift();
-        detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
-        twiml.dial(
-          {
-            action: generateCallbackURI(
-              context,
-              {
-                callerId,
-                detailedLog,
-                phoneNumber,
-                phoneNumbers,
-                realCallerId,
-                runFunction: 'call',
-                teamsArray
-              }
-            ),
-            callerId
-          }
-        )
-        .number(
-          {
-            url: generateCallbackURI(
-              context,
-              {
-                callerId,
-                detailedLog,
-                phoneNumber,
-                phoneNumbers,
-                realCallerId,
-                runFunction: 'isHuman',
-                teamsArray
-              }
-            ),
-            statusCallback: generateCallbackURI(
-              context,
-              {
-                callerId,
-                detailedLog,
-                phoneNumber,
-                phoneNumbers,
-                realCallerId,
-                runFunction: 'postToVictorOps',
-                teamsArray
-              }
-            ),
-            statusCallbackEvent: 'completed'
-          },
-          phoneNumber.phone
-        );
-      }
-    }
-
-    resolve(twiml);
-  });
+        // Attempt to connect to last on-call person and go to voicemail if no answer
+        if (phoneNumbers.length === 1) {
+          phoneNumber = phoneNumbers[0];
+          detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
+          twiml.dial(
+            {
+              action: generateCallbackURI(
+                context,
+                {
+                  entityId:CallSid,
+                  callerId,
+                  realCallerId,
+                  goToVM,
+                  detailedLog,
+                  phoneNumber,
+                  phoneNumbers,
+                  runFunction: 'leaveAMessage',
+                  teamsArray
+                }
+              ),
+              callerId
+            }
+          )
+          .number(
+            {
+              url: generateCallbackURI(
+                context,
+                {
+                  callerId,
+                  realCallerId,
+                  detailedLog,
+                  phoneNumber,
+                  phoneNumbers,
+                  runFunction: 'isHuman',
+                  teamsArray
+                }
+              ),
+              statusCallback: generateCallbackURI(
+                context,
+                {
+                  callerId,
+                  realCallerId,
+                  detailedLog,
+                  goToVM,
+                  phoneNumber,
+                  phoneNumbers,
+                  runFunction: 'postToVictorOps',
+                  teamsArray
+                }
+              ),
+              statusCallbackEvent: 'completed'
+            },
+            phoneNumber.phone
+          );
+        // Attempt to connect to first on-call person and attempt to connect to next on-call person if no answer
+        } else {
+          phoneNumber = phoneNumbers[0];
+          phoneNumbers.shift();
+          detailedLog = `\n\n${From} calling ${phoneNumber.user}...${detailedLog || ''}`;
+          twiml.dial(
+            {
+              action: generateCallbackURI(
+                context,
+                {
+                  entityId:CallSid,
+                  callerId,
+                  detailedLog,
+                  phoneNumber,
+                  phoneNumbers,
+                  realCallerId,
+                  runFunction: 'call',
+                  teamsArray
+                }
+              ),
+              callerId
+            }
+          )
+          .number(
+            {
+              url: generateCallbackURI(
+                context,
+                {
+                  callerId,
+                  detailedLog,
+                  phoneNumber,
+                  phoneNumbers,
+                  realCallerId,
+                  runFunction: 'isHuman',
+                  teamsArray
+                }
+              ),
+              statusCallback: generateCallbackURI(
+                context,
+                {
+                  callerId,
+                  detailedLog,
+                  phoneNumber,
+                  phoneNumbers,
+                  realCallerId,
+                  runFunction: 'postToVictorOps',
+                  teamsArray
+                }
+              ),
+              statusCallbackEvent: 'completed'
+            },
+            phoneNumber.phone
+          );
+        }
+      resolve(twiml);
+    });
+  }
 }
 
 // Asks called party for an input when they pick up the phone to differentiate between human and voicemail
@@ -910,7 +912,6 @@ function isHuman (twiml, context, event, payload) {
         )
       );
     }
-
     resolve(twiml);
   });
 }
@@ -918,151 +919,150 @@ function isHuman (twiml, context, event, payload) {
 // Records caller's message and transcribes it
 function leaveAMessage (twiml, context, event, payload) {
   log('leaveAMessage', event);
-  return new Promise((resolve, reject) => {
     const {messages, NO_VOICEMAIL} = context;
-    const {DialCallStatus} = event;
+    const {DialCallStatus, DialBridged} = event;
     const {callerId, detailedLog, goToVM, teamsArray, sayGoodbye, voice, realCallerId} = payload;
-
+    
     // Caller was connected to on-call person and call completed
-    if (DialCallStatus === 'completed') {
-      twiml.say(
-        {voice},
-        `${messages.otherPartyDisconnect} ${messages.goodbye}`
-      );
-    // If caller does not hang up after leaving message,
-    // this message will play and then end the call
-    } else if (sayGoodbye === true) {
-      twiml.say(
-        {voice},
-        `${messages.attemptTranscription} ${messages.goodbye}`
-      );
-
-      let message = messages.voicemail(teamsArray[0].name);
-
-      if (goToVM !== true) {
-        message = `${messages.noAnswer} ${message}`;
-      }
-
-      twiml.say(
-        {voice},
-        message
-      );
-      twiml.record(
-        {
-          transcribe: true,
-          transcribeCallback: generateCallbackURI(
-            context,
-            {
-              callerId,
-              detailedLog,
-              goToVM,
-              runFunction: 'postToVictorOps',
-              teamsArray
-            }
-          ),
-          timeout: 10,
-          action: generateCallbackURI(
-            context,
-            {
-              callerId,
-              detailedLog,
-              runFunction: 'leaveAMessage',
-              sayGoodbye: true,
-              teamsArray
-            }
-          )
-        }
-      );
-    // If the no voicemail flag is set then we want to play the no voicemail message
-    // and still create an incident in VO with the caller's phone number
-    } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
-      let message = messages.noVoicemail(teamsArray[0].name);
-
-      if (goToVM !== true) {
-        message = `${messages.noAnswer} ${message}`;
-      }
-
-      twiml.say(
-        {voice},
-        message
-      );
-      twiml.redirect(
-        generateCallbackURI(
-          context,
-          {
-            realCallerId,
-            callerId,
-            goToVM,
-            runFunction: 'postToVictorOps',
-            teamsArray
-          }
-        )
-      );
-
-    // Play a message, record the caller's message, transcribe caller's message
+    if (DialCallStatus == 'completed' && DialBridged == 'true') {
+      return postToVictorOps(event, context, payload);
     } else {
-      let message = messages.voicemail(teamsArray[0].name);
+      return new Promise((resolve, reject) => {
+        // If caller does not hang up after leaving message,
+        // this message will play and then end the call
+        //} 
+        if (sayGoodbye === true) {
+          twiml.say(
+            {voice},
+            `${messages.attemptTranscription} ${messages.goodbye}`
+          );
 
-      if (goToVM !== true) {
-        message = `${messages.noAnswer} ${message}`;
-      }
+          let message = messages.voicemail(teamsArray[0].name);
 
-      twiml.say(
-        {voice},
-        message
-      );
-      twiml.record(
-        {
-          transcribe: true,
-          transcribeCallback: generateCallbackURI(
+        if (goToVM !== true) {
+          message = `${messages.noAnswer} ${message}`;
+        }
+
+        twiml.say(
+          {voice},
+          message
+        );
+        twiml.record(
+          {
+            transcribe: true,
+            transcribeCallback: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                goToVM,
+                runFunction: 'postToVictorOps',
+                teamsArray
+              }
+            ),
+            timeout: 10,
+            action: generateCallbackURI(
+              context,
+              {
+                callerId,
+                detailedLog,
+                runFunction: 'leaveAMessage',
+                sayGoodbye: true,
+                teamsArray
+              }
+            )
+          }
+        );
+      // If the no voicemail flag is set then we want to play the no voicemail message
+      // and still create an incident in VO with the caller's phone number
+      } else if (NO_VOICEMAIL.toLowerCase() === 'true') {
+        let message = messages.noVoicemail(teamsArray[0].name);
+
+        if (goToVM !== true) {
+          message = `${messages.noAnswer} ${message}`;
+        }
+
+        twiml.say(
+          {voice},
+          message
+        );
+        twiml.redirect(
+          generateCallbackURI(
             context,
             {
               realCallerId,
               callerId,
-              detailedLog,
               goToVM,
               runFunction: 'postToVictorOps',
               teamsArray
             }
-          ),
-          timeout: 10,
-          action: generateCallbackURI(
-            context,
-            {
-              realCallerId,
-              callerId,
-              detailedLog,
-              runFunction: 'leaveAMessage',
-              sayGoodbye: true,
-              teamsArray
-            }
           )
-        }
-      );
-    }
+        );
 
-    resolve(twiml);
-  });
+      // Play a message, record the caller's message, transcribe caller's message
+      } else {
+        let message = messages.voicemail(teamsArray[0].name);
+
+        if (goToVM !== true) {
+          message = `${messages.noAnswer} ${message}`;
+        }
+
+        twiml.say(
+          {voice},
+          message
+        );
+        twiml.record(
+          {
+            transcribe: true,
+            transcribeCallback: generateCallbackURI(
+              context,
+              {
+                realCallerId,
+                callerId,
+                detailedLog,
+                goToVM,
+                runFunction: 'postToVictorOps',
+                teamsArray
+              }
+            ),
+            timeout: 10,
+            action: generateCallbackURI(
+              context,
+              {
+                realCallerId,
+                callerId,
+                detailedLog,
+                runFunction: 'leaveAMessage',
+                sayGoodbye: true,
+                teamsArray
+              }
+            )
+          }
+        );
+      }
+      
+      resolve(twiml);
+    });
+  }
 }
 
 // Posts information to VictorOps that generates alerts that show up in the timeline
 function postToVictorOps (event, context, payload) {
   return new Promise((resolve, reject) => {
     const {ALERT_HOST, messages, VICTOROPS_TWILIO_SERVICE_API_KEY, NO_VOICEMAIL} = context;
-    const {CallSid, CallStatus, CallDuration, TranscriptionStatus, TranscriptionText} = event;
-    const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray} = payload;
-
+    const {CallSid, CallStatus, TranscriptionStatus, TranscriptionText,ParentCallSid, DialCallStatus} = event;
+    const {callAnsweredByHuman, detailedLog, goToVM, phoneNumber, realCallerId, teamsArray, voice, entityId} = payload;
     const alert = {
       monitoring_tool: 'Twilio',
       entity_id: CallSid,
-      entity_display_name: 'Twilio Live Call Routing Details'
+      entity_display_name: 'Twilio Live Call Routing Details',
+      caller_id: realCallerId
     };
-
     // If they're going straight to VM and no voicemail is set, just create the incident
     if (goToVM === true && NO_VOICEMAIL.toLowerCase() === 'true') {
       alert.monitoring_tool = 'Twilio';
       alert.message_type = 'critical';
-      alert.caller_id = messages.voCallNotAnswered(realCallerId);
+      alert.state_message = messages.voCallNotAnswered(realCallerId);
     // Create an incident in VictorOps if Twilio was able to transcribe caller's message
     } else if (!(_.isUndefined(TranscriptionText)) && TranscriptionText !== '') {
       alert.message_type = 'critical';
@@ -1071,7 +1071,7 @@ function postToVictorOps (event, context, payload) {
         : messages.voTwilioMessageAfter(teamsArray[0].name);
       alert.state_message = messages.voTwilioTransciption(TranscriptionText, detailedLog);
     // Create an incident in VictorOps if Twilio was unable to transcribe caller's message
-    } else if (!(_.isUndefined(TranscriptionText))) {
+    } else if (TranscriptionStatus == 'failed') {
       alert.message_type = 'critical';
       alert.entity_display_name = goToVM === true
         ? messages.voTwilioMessageDirect(teamsArray[0].name)
@@ -1082,22 +1082,22 @@ function postToVictorOps (event, context, payload) {
       alert.message_type = 'acknowledgement';
       alert.state_message = messages.voCallAnswered(phoneNumber.user, realCallerId, detailedLog);
       alert.ack_author = phoneNumber.user;
+      alert.entity_id = ParentCallSid;
     // Create a 'Recovery' alert in VictorOps when caller and on-call person complete their call
-    } else if (CallStatus === 'completed' && TranscriptionStatus !== 'failed') {
+    } else if (DialCallStatus === 'completed' && TranscriptionStatus !== 'failed') {
       alert.message_type = 'recovery';
-      alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, CallDuration, detailedLog);
+      alert.state_message = messages.voCallCompleted(phoneNumber.user, realCallerId, detailedLog);
       alert.ack_author = phoneNumber.user;
-    } else if (CallStatus === 'no-answer' && NO_VOICEMAIL.toLowerCase() === 'true') {
+      alert.entity_id = entityId;
+    } else if (CallStatus === 'in-progress' && NO_VOICEMAIL.toLowerCase() === 'true') {
       alert.monitoring_tool = 'Twilio';
       alert.message_type = 'critical';
-      alert.caller_id = messages.voCallNotAnswered(realCallerId);
+      alert.state_message = messages.voCallNotAnswered(realCallerId);
     } else {
       resolve('');
       return;
     }
-
     log('postToVictorOps', event);
-
     got.post(
       `https://${ALERT_HOST}/integrations/generic/20131114/alert/${VICTOROPS_TWILIO_SERVICE_API_KEY}/${teamsArray[0].slug}`,
       {
@@ -1107,11 +1107,15 @@ function postToVictorOps (event, context, payload) {
       }
     )
     .then(response => {
-      resolve('');
+      const twiml = new Twilio.twiml.VoiceResponse();
+      twiml.say(
+        {voice},
+        `${messages.otherPartyDisconnect} ${messages.goodbye}`
+      );
+      resolve(DialCallStatus == 'completed' && TranscriptionStatus !== 'failed' ? twiml : '');
     })
     .catch(err => {
       console.log(err);
-
       resolve('');
     });
   });
